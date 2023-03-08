@@ -7,16 +7,34 @@ triangular <- function(x) {
   return((1-abs(x))*(abs(x)<=1))
 }
 
+compare_correlation <- function(Z, Y, threshold) {
+  correlation_coefficents <- c()
+  for (column in 1:200) {
+    diff_Z_mean <- Z[,column]-mean(Z[,column])
+    diff_Y_mean <- Y-mean(Y)
+    correlation_coefficents <- append(correlation_coefficents, sum(diff_Z_mean*diff_Y_mean)/sqrt(sum(diff_Z_mean^2)*sum(diff_Y_mean^2)))
+  }
+  indices <- which(correlation_coefficents>=threshold)
+  if (length(indices) == 0) {
+    return(NA)
+  } else {
+    return(indices)
+  }
+}
+
 start_time <- Sys.time()
 
 # Number of replications
-number_of_montecarlo_replications <- 1000
+number_of_montecarlo_replications <- 100
+
+# Number of examinations
+number_of_examinations <- 10
 
 perform_rdd <- function(n) {
   # Library to use for RDD
   # robust - RDRobust
   # honest - RDHonest
-  rdd_library <- "robust"
+  rdd_library <- "honest"
   
   # Type of estimator (only relevant for RDRobust)
   # 1 - Conventional
@@ -24,10 +42,11 @@ perform_rdd <- function(n) {
   # 3 - Robust
   estimator_type <- 2
   
-  coef_vector <- array(NA, c(6))
-  standard_error_vector <- array(NA, c(6))
-  ci_length_vector <- array(NA, c(6))
-  coverage_vector <- array(0, c(6))
+  coef_vector <- array(NA, c(number_of_examinations))
+  standard_error_vector <- array(NA, c(number_of_examinations))
+  ci_length_vector <- array(NA, c(number_of_examinations))
+  coverage_vector <- array(0, c(number_of_examinations))
+  number_of_covs_vector <- array(NA, c(number_of_examinations))
   
   # Generate finite sample data (score and covariates)
   X <- 2*rbeta(1000, 2, 4)-1
@@ -55,7 +74,13 @@ perform_rdd <- function(n) {
   Y <- (1-T)*Y_0+T*Y_1
   
   n <- length(Y)
-  covariate_settings <- list(NA, matrix_Z[,1], matrix_Z[,1:10], matrix_Z[,1:30], matrix_Z[,1:50], Z_times_alpha)
+
+  covs_with_correlation_greater_002 <- compare_correlation(matrix_Z, Y, 0.02)
+  covs_with_correlation_greater_005 <- compare_correlation(matrix_Z, Y, 0.05)
+  covs_with_correlation_greater_01 <- compare_correlation(matrix_Z, Y, 0.1)
+  covs_with_correlation_greater_02 <- compare_correlation(matrix_Z, Y, 0.2)
+  
+  covariate_settings <- list(matrix_Z[,covs_with_correlation_greater_02], matrix_Z[,covs_with_correlation_greater_01], matrix_Z[,covs_with_correlation_greater_005], matrix_Z[,covs_with_correlation_greater_002], NA, as.matrix(matrix_Z[,1]), matrix_Z[,1:10], matrix_Z[,1:30], matrix_Z[,1:50], Z_times_alpha)
   
   if (rdd_library == "robust") {
     counter <- 1
@@ -70,6 +95,11 @@ perform_rdd <- function(n) {
       ci_length_vector[counter] <- rd$ci[estimator_type,2]-rd$ci[estimator_type,1]
       if (0.02>=rd$ci[estimator_type,1] && 0.02<=rd$ci[estimator_type,2]) {
         coverage_vector[counter] = 1
+      }
+      if (length(ncol(covariates)) == 0) {
+        number_of_covs_vector[counter] <- 0
+      } else {
+        number_of_covs_vector[counter] <- ncol(covariates)
       }
       counter <- counter + 1
     }
@@ -96,27 +126,34 @@ perform_rdd <- function(n) {
       if (0.02>=rd_ten_covs$coefficients$conf.low && 0.02<=rd_ten_covs$coefficients$conf.high) {
         coverage_vector[counter] = 1
       }
+      if (length(ncol(covariates)) == 0) {
+        number_of_covs_vector[counter] <- 0
+      } else {
+        number_of_covs_vector[counter] <- ncol(covariates)
+      }
       counter = counter + 1
     }
   }
   
   cat("Completed run", n, "\n")
   
-  return(matrix(c(standard_error_vector, coef_vector, ci_length_vector, coverage_vector), 6, 4))
+  return(matrix(c(standard_error_vector, coef_vector, ci_length_vector, coverage_vector, number_of_covs_vector), number_of_examinations, 5))
 }
 
 results_list_of_matrices <- mclapply(1:number_of_montecarlo_replications, perform_rdd, mc.cores = 10)
 results_matrix <- simplify2array(results_list_of_matrices)
 
+number_of_covs <- c()
 mean_of_estimator <- c()
 bias <- c()
 standard_deviation <- c()
 standard_error <- c()
 ci_length <- c()
 coverage <- c()
-results <- matrix(NA, 6, 5, dimnames = list(list("0 Covs", "1 Cov", "10 Covs", "30 Covs", "50 Covs", "Opt. Cov"), list("Bias", "SD", "Avg. SE", "CI Length", "Coverage")))
+results <- matrix(NA, number_of_examinations, 6, dimnames = list(list("Cor.>0.2", "Cor.>0.1", "Cor.>0.05", "Cor.>0.02", "0 Covs", "1 Cov", "10 Covs", "30 Covs", "50 Covs", "Opt. Cov"), list("#Covs", "Bias", "SD", "Avg. SE", "CI Length", "Coverage")))
 
-for (l in 1:6) {
+for (l in 1:number_of_examinations) {
+  number_of_covs <- append(number_of_covs, mean(results_matrix[l,5,]))
   mean_of_estimator <- append(mean_of_estimator, mean(results_matrix[l,2,]))
   bias <- append(bias, mean_of_estimator[l]-0.02)
   standard_deviation <- append(standard_deviation, sqrt(mean((results_matrix[l,2,]-mean_of_estimator[l])^2)))
@@ -124,7 +161,7 @@ for (l in 1:6) {
   ci_length <- append(ci_length, mean(results_matrix[l,3,]))
   coverage <- append(coverage, mean(results_matrix[l,4,])*100)
   
-  results[l,] <- c(bias[l], standard_deviation[l], standard_error[l], ci_length[l], coverage[l])
+  results[l,] <- c(number_of_covs[l], bias[l], standard_deviation[l], standard_error[l], ci_length[l], coverage[l])
 }
 
 results
