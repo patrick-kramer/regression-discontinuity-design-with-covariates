@@ -3,14 +3,25 @@ library('mvtnorm')
 library('rdrobust')
 library('parallel')
 
+triangular <- function(x) {
+  return((1-abs(x))*(abs(x)<=1))
+}
+
 start_time <- Sys.time()
 
-number_of_montecarlo_replications <- 20
-# Type of RDRobust estimator
+# Number of replications
+number_of_montecarlo_replications <- 1000
+
+# Library to use for RDD
+# robust - RDRobust
+# honest - RDHonest
+library_for_rdd <- "robust"
+
+# Type of estimator (only relevant for RDRobust)
 # 1 - Conventional
 # 2 - Bias-Corrected
 # 3 - Robust
-type_of_estimator <- 2
+type_of_estimator <- 3
 
 perform_rdd <- function(n) {
   coef_vector <- array(NA, c(6))
@@ -43,58 +54,50 @@ perform_rdd <- function(n) {
   # Define outcome
   Y <- (1-T)*Y_0+T*Y_1
   
-  # RDD without covariates
-  rd_without_covs <- rdrobust(Y, X)
-  standard_error_vector[1] <- rd_without_covs$se[type_of_estimator]
-  coef_vector[1] <- rd_without_covs$coef[type_of_estimator]
-  ci_length_vector[1] <- rd_without_covs$ci[type_of_estimator,2]-rd_without_covs$ci[type_of_estimator,1]
-  if (0.02>=rd_without_covs$ci[type_of_estimator,1] && 0.02<=rd_without_covs$ci[type_of_estimator,2]) {
-    coverage_vector[1] = 1
-  }
+  n <- length(Y)
+  covariate_settings <- list(NA, Z[,1], Z[,1:10], Z[,1:30], Z[,1:50], Z_times_alpha)
   
-  # RDD with 1 covariate
-  rd_one_cov <- rdrobust(Y, X, covs = matrix_Z[,1])
-  standard_error_vector[2] <- rd_one_cov$se[type_of_estimator]
-  coef_vector[2] <- rd_one_cov$coef[type_of_estimator]
-  ci_length_vector[2] <- rd_one_cov$ci[type_of_estimator,2]-rd_one_cov$ci[type_of_estimator,1]
-  if (0.02>=rd_one_cov$ci[type_of_estimator,1] && 0.02<=rd_one_cov$ci[type_of_estimator,2]) {
-    coverage_vector[2] = 1
-  }
-  
-  # RDD with 10 covariates
-  rd_ten_covs <- rdrobust(Y, X, covs = matrix_Z[,1:10])
-  standard_error_vector[3] <- rd_ten_covs$se[type_of_estimator]
-  coef_vector[3] <- rd_ten_covs$coef[type_of_estimator]
-  ci_length_vector[3] <- rd_ten_covs$ci[type_of_estimator,2]-rd_ten_covs$ci[type_of_estimator,1]
-  if (0.02>=rd_ten_covs$ci[type_of_estimator,1] && 0.02<=rd_ten_covs$ci[type_of_estimator,2]) {
-    coverage_vector[3] = 1
-  }
-  
-  # RDD with 30 covariates
-  rd_thirty_covs <- rdrobust(Y, X, covs = matrix_Z[,1:30])
-  standard_error_vector[4] <- rd_thirty_covs$se[type_of_estimator]
-  coef_vector[4] <- rd_thirty_covs$coef[type_of_estimator]
-  ci_length_vector[4] <- rd_thirty_covs$ci[type_of_estimator,2]-rd_thirty_covs$ci[type_of_estimator,1]
-  if (0.02>=rd_thirty_covs$ci[type_of_estimator,1] && 0.02<=rd_thirty_covs$ci[type_of_estimator,2]) {
-    coverage_vector[4] = 1
-  }
-  
-  # RDD with 50 covariates
-  rd_fifty_covs <- rdrobust(Y, X, covs = matrix_Z[,1:50])
-  standard_error_vector[5] <- rd_fifty_covs$se[type_of_estimator]
-  coef_vector[5] <- rd_fifty_covs$coef[type_of_estimator]
-  ci_length_vector[5] <- rd_fifty_covs$ci[type_of_estimator,2]-rd_fifty_covs$ci[type_of_estimator,1]
-  if (0.02>=rd_fifty_covs$ci[type_of_estimator,1] && 0.02<=rd_fifty_covs$ci[type_of_estimator,2]) {
-    coverage_vector[5] = 1
-  }
-  
-  # RDD with optimal covariate
-  rd_optimal_cov <- rdrobust(Y, X, covs = Z_times_alpha)
-  standard_error_vector[6] <- rd_optimal_cov$se[type_of_estimator]
-  coef_vector[6] <- rd_optimal_cov$coef[type_of_estimator]
-  ci_length_vector[6] <- rd_optimal_cov$ci[type_of_estimator,2]-rd_optimal_cov$ci[type_of_estimator,1]
-  if (0.02>=rd_optimal_cov$ci[type_of_estimator,1] && 0.02<=rd_optimal_cov$ci[type_of_estimator,2]) {
-    coverage_vector[6] = 1
+  if (library_for_rdd == "robust") {
+    counter <- 1
+    for (covariates in covariate_settings) {
+      if (all(!is.na(covariates))) {
+        rd <- rdrobust(Y, X, covs = covariates)
+      } else {
+        rd <- rdrobust(Y, X)
+      }
+      standard_error_vector[counter] <- rd$se[type_of_estimator]
+      coef_vector[counter] <- rd$coef[type_of_estimator]
+      ci_length_vector[counter] <- rd$ci[type_of_estimator,2]-rd$ci[type_of_estimator,1]
+      if (0.02>=rd$ci[type_of_estimator,1] && 0.02<=rd$ci[type_of_estimator,2]) {
+        coverage_vector[counter] = 1
+      }
+      counter <- counter + 1
+    }
+  } else if (library_for_rdd == "honest") {
+    counter <- 1
+    for (covariates in covariate_settings) {
+      if (all(!is.na(covariates))) {
+        h <- RDHonest::RDHonest(Y~X)$coefficients$bandwidth
+        kernel_weights <- triangular(X/h)/h
+        cov_lm <- lm(covariates~1+X+T+X*T, weights = kernel_weights)
+        v <- cov_lm$residuals
+        sigma_Z <- t(v)%*%(v*kernel_weights)/n
+        sigma_ZY <- colSums(as.matrix(v*as.vector(kernel_weights*Y)))/n
+        gamma_n <- solve(sigma_Z)%*%sigma_ZY
+        Ytilde <- Y-covariates%*%gamma_n
+      } else {
+        Ytilde = Y
+      }
+      rd_ten_covs <- RDHonest::RDHonest(Ytilde~X)
+      
+      standard_error_vector[counter] <- rd_ten_covs$coefficients$std.error
+      coef_vector[counter] <- rd_ten_covs$coefficients$estimate
+      ci_length_vector[counter] <- rd_ten_covs$coefficients$conf.high-rd_ten_covs$coefficients$conf.low
+      if (0.02>=rd_ten_covs$coefficients$conf.low && 0.02<=rd_ten_covs$coefficients$conf.high) {
+        coverage_vector[counter] = 1
+      }
+      counter = counter + 1
+    }
   }
   
   cat("Completed run", n, "\n")
@@ -102,7 +105,7 @@ perform_rdd <- function(n) {
   return(matrix(c(standard_error_vector, coef_vector, ci_length_vector, coverage_vector), 6, 4))
 }
 
-results_list_of_matrices <- mclapply(1:number_of_montecarlo_replications, perform_rdd, mc.cores = 6)
+results_list_of_matrices <- mclapply(1:number_of_montecarlo_replications, perform_rdd, mc.cores = 10)
 results_matrix <- simplify2array(results_list_of_matrices)
 
 mean_of_estimator <- c()
