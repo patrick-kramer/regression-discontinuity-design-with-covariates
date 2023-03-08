@@ -12,18 +12,18 @@ start_time <- Sys.time()
 # Number of replications
 number_of_montecarlo_replications <- 1000
 
-# Library to use for RDD
-# robust - RDRobust
-# honest - RDHonest
-library_for_rdd <- "robust"
-
-# Type of estimator (only relevant for RDRobust)
-# 1 - Conventional
-# 2 - Bias-Corrected
-# 3 - Robust
-type_of_estimator <- 3
-
 perform_rdd <- function(n) {
+  # Library to use for RDD
+  # robust - RDRobust
+  # honest - RDHonest
+  rdd_library <- "robust"
+  
+  # Type of estimator (only relevant for RDRobust)
+  # 1 - Conventional
+  # 2 - Bias-Corrected
+  # 3 - Robust
+  estimator_type <- 2
+  
   coef_vector <- array(NA, c(6))
   standard_error_vector <- array(NA, c(6))
   ci_length_vector <- array(NA, c(6))
@@ -55,9 +55,9 @@ perform_rdd <- function(n) {
   Y <- (1-T)*Y_0+T*Y_1
   
   n <- length(Y)
-  covariate_settings <- list(NA, Z[,1], Z[,1:10], Z[,1:30], Z[,1:50], Z_times_alpha)
+  covariate_settings <- list(NA, matrix_Z[,1], matrix_Z[,1:10], matrix_Z[,1:30], matrix_Z[,1:50], Z_times_alpha)
   
-  if (library_for_rdd == "robust") {
+  if (rdd_library == "robust") {
     counter <- 1
     for (covariates in covariate_settings) {
       if (all(!is.na(covariates))) {
@@ -65,15 +65,15 @@ perform_rdd <- function(n) {
       } else {
         rd <- rdrobust(Y, X)
       }
-      standard_error_vector[counter] <- rd$se[type_of_estimator]
-      coef_vector[counter] <- rd$coef[type_of_estimator]
-      ci_length_vector[counter] <- rd$ci[type_of_estimator,2]-rd$ci[type_of_estimator,1]
-      if (0.02>=rd$ci[type_of_estimator,1] && 0.02<=rd$ci[type_of_estimator,2]) {
+      standard_error_vector[counter] <- rd$se[estimator_type]
+      coef_vector[counter] <- rd$coef[estimator_type]
+      ci_length_vector[counter] <- rd$ci[estimator_type,2]-rd$ci[estimator_type,1]
+      if (0.02>=rd$ci[estimator_type,1] && 0.02<=rd$ci[estimator_type,2]) {
         coverage_vector[counter] = 1
       }
       counter <- counter + 1
     }
-  } else if (library_for_rdd == "honest") {
+  } else if (rdd_library == "honest") {
     counter <- 1
     for (covariates in covariate_settings) {
       if (all(!is.na(covariates))) {
