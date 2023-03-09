@@ -14,12 +14,17 @@ compare_correlation <- function(Z, Y, threshold) {
     diff_Y_mean <- Y-mean(Y)
     correlation_coefficents <- append(correlation_coefficents, sum(diff_Z_mean*diff_Y_mean)/sqrt(sum(diff_Z_mean^2)*sum(diff_Y_mean^2)))
   }
-  indices <- which(correlation_coefficents>=threshold)
-  if (length(indices) == 0) {
-    return(NA)
-  } else {
-    return(indices)
+  return(which(correlation_coefficents>=threshold))
+}
+
+calculate_correlation_threshholds <- function(Z, Y) {
+  threshold_vector <- c()
+  for (column in 1:200) {
+    sigma <- mean(Z[,column]^2*Y^2)-(mean(Z[,column])^2)*(mean(Y)^2)
+    sdZ_sdY <- sqrt(var(Z[,column])*var(Y))
+    threshold_vector <- append(threshold_vector, (3*sqrt(sigma))/(sqrt(1000)*sdZ_sdY))
   }
+  return(threshold_vector)
 }
 
 start_time <- Sys.time()
@@ -28,7 +33,7 @@ start_time <- Sys.time()
 number_of_montecarlo_replications <- 100
 
 # Number of examinations
-number_of_examinations <- 10
+number_of_examinations <- 11
 
 perform_rdd <- function(n) {
   # Library to use for RDD
@@ -79,8 +84,14 @@ perform_rdd <- function(n) {
   covs_with_correlation_greater_005 <- compare_correlation(matrix_Z, Y, 0.05)
   covs_with_correlation_greater_01 <- compare_correlation(matrix_Z, Y, 0.1)
   covs_with_correlation_greater_02 <- compare_correlation(matrix_Z, Y, 0.2)
+  covs_with_correlation_greater_calculated_threshold <- compare_correlation(matrix_Z, Y, calculate_correlation_threshholds(matrix_Z, Y))
+  Z_002 <- if (length(covs_with_correlation_greater_002) == 0) NA else Z[,covs_with_correlation_greater_002]
+  Z_005 <- if (length(covs_with_correlation_greater_005) == 0) NA else Z[,covs_with_correlation_greater_005]
+  Z_01 <- if (length(covs_with_correlation_greater_01) == 0) NA else Z[,covs_with_correlation_greater_01]
+  Z_02 <- if (length(covs_with_correlation_greater_02) == 0) NA else Z[,covs_with_correlation_greater_02]
+  Z_calculated_threshold <- if (length(covs_with_correlation_greater_calculated_threshold) == 0) NA else Z[,covs_with_correlation_greater_calculated_threshold]
   
-  covariate_settings <- list(matrix_Z[,covs_with_correlation_greater_02], matrix_Z[,covs_with_correlation_greater_01], matrix_Z[,covs_with_correlation_greater_005], matrix_Z[,covs_with_correlation_greater_002], NA, as.matrix(matrix_Z[,1]), matrix_Z[,1:10], matrix_Z[,1:30], matrix_Z[,1:50], Z_times_alpha)
+  covariate_settings <- list(Z_calculated_threshold, Z_02, Z_01, Z_005, Z_002, NA, as.matrix(matrix_Z[,1]), matrix_Z[,1:10], matrix_Z[,1:30], matrix_Z[,1:50], Z_times_alpha)
   
   if (rdd_library == "robust") {
     counter <- 1
@@ -150,7 +161,7 @@ standard_deviation <- c()
 standard_error <- c()
 ci_length <- c()
 coverage <- c()
-results <- matrix(NA, number_of_examinations, 6, dimnames = list(list("Cor.>0.2", "Cor.>0.1", "Cor.>0.05", "Cor.>0.02", "0 Covs", "1 Cov", "10 Covs", "30 Covs", "50 Covs", "Opt. Cov"), list("#Covs", "Bias", "SD", "Avg. SE", "CI Length", "Coverage")))
+results <- matrix(NA, number_of_examinations, 6, dimnames = list(list("Cor.>calc.Th.", "Cor.>0.2", "Cor.>0.1", "Cor.>0.05", "Cor.>0.02", "0 Covs", "1 Cov", "10 Covs", "30 Covs", "50 Covs", "Opt. Cov"), list("#Covs", "Bias", "SD", "Avg. SE", "CI Length", "Coverage")))
 
 for (l in 1:number_of_examinations) {
   number_of_covs <- append(number_of_covs, mean(results_matrix[l,5,]))
