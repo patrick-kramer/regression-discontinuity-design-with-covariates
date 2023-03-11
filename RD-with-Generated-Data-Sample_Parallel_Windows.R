@@ -22,7 +22,7 @@ calculate_correlation_thresholds <- function(Z, Y) {
   for (column in 1:200) {
     sigma <- mean(Z[,column]^2*Y^2)-(mean(Z[,column])^2)*(mean(Y)^2)
     sdZ_sdY <- sqrt(var(Z[,column])*var(Y))
-    threshold_vector <- append(threshold_vector, (2*sqrt(sigma))/(sqrt(1000)*sdZ_sdY))
+    threshold_vector <- append(threshold_vector, (3*sqrt(sigma))/(sqrt(1000)*sdZ_sdY))
   }
   return(threshold_vector)
 }
@@ -30,7 +30,7 @@ calculate_correlation_thresholds <- function(Z, Y) {
 start_time <- Sys.time()
 
 # Number of replications
-number_of_montecarlo_replications <- 10000
+number_of_montecarlo_replications <- 100
 
 # Number of examinations
 number_of_examinations <- 11
@@ -79,7 +79,7 @@ perform_rdd <- function(n) {
   Y <- (1-T)*Y_0+T*Y_1
   
   n <- length(Y)
-
+  
   covs_with_correlation_greater_002 <- compare_correlation(matrix_Z, Y, 0.02)
   covs_with_correlation_greater_005 <- compare_correlation(matrix_Z, Y, 0.05)
   covs_with_correlation_greater_01 <- compare_correlation(matrix_Z, Y, 0.1)
@@ -151,7 +151,16 @@ perform_rdd <- function(n) {
   return(matrix(c(standard_error_vector, coef_vector, ci_length_vector, coverage_vector, number_of_covs_vector), number_of_examinations, 5))
 }
 
-results_list_of_matrices <- mclapply(1:number_of_montecarlo_replications, perform_rdd, mc.cores = 11)
+# Parallelization for windows systems
+cluster <- makeCluster(10)
+load_packages <- parLapply(cluster, 1:length(cluster),
+                           function(n) {
+                             require('rdrobust')
+                             require('mvtnorm')
+                           })
+clusterExport(cluster, c('perform_rdd', 'triangular', 'compare_correlation', 'calculate_correlation_thresholds', 'number_of_examinations'))
+results_list_of_matrices <- parLapply(cluster, 1:number_of_montecarlo_replications, perform_rdd)
+stopCluster(cluster)
 results_matrix <- simplify2array(results_list_of_matrices)
 
 number_of_covs <- c()
