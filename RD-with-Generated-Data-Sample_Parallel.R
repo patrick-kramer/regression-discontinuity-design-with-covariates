@@ -39,13 +39,13 @@ perform_rdd <- function(n) {
   # Library to use for RDD
   # robust - RDRobust
   # honest - RDHonest
-  rdd_library <- "honest"
+  rdd_library <- "robust"
   
   # Type of estimator (only relevant for RDRobust)
   # 1 - Conventional
   # 2 - Bias-Corrected
   # 3 - Robust
-  estimator_type <- 2
+  estimator_type <- 1
   
   coef_vector <- array(NA, c(number_of_examinations))
   standard_error_vector <- array(NA, c(number_of_examinations))
