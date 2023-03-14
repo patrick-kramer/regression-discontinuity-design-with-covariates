@@ -1,0 +1,191 @@
+# Load packages
+library('mvtnorm')
+library('rdrobust')
+library('parallel')
+
+triangular <- function(x) {
+  return((1-abs(x))*(abs(x)<=1))
+}
+
+compare_correlation <- function(Z, Y, threshold) {
+  correlation_coefficents <- c()
+  for (column in 1:200) {
+    diff_Z_mean <- Z[,column]-mean(Z[,column])
+    diff_Y_mean <- Y-mean(Y)
+    correlation_coefficents <- append(correlation_coefficents, sum(diff_Z_mean*diff_Y_mean)/sqrt(sum(diff_Z_mean^2)*sum(diff_Y_mean^2)))
+  }
+  return(which(correlation_coefficents>=threshold))
+}
+
+calculate_correlation_thresholds <- function(Z, Y) {
+  threshold_vector <- c()
+  for (column in 1:200) {
+    sigma <- mean(Z[,column]^2*Y^2)-(mean(Z[,column])^2)*(mean(Y)^2)
+    sdZ_sdY <- sqrt(var(Z[,column])*var(Y))
+    threshold_vector <- append(threshold_vector, (3*sqrt(sigma))/(sqrt(1000)*sdZ_sdY))
+  }
+  return(threshold_vector)
+}
+
+start_time <- Sys.time()
+
+# Number of replications
+number_of_montecarlo_replications <- 100
+
+# Number of examinations
+number_of_examinations <- 11
+
+perform_rdd <- function(n) {
+  # Library to use for RDD
+  # robust - RDRobust
+  # honest - RDHonest
+  rdd_library <- "honest"
+  
+  # Type of estimator (only relevant for RDRobust)
+  # 1 - Conventional
+  # 2 - Bias-Corrected
+  # 3 - Robust
+  estimator_type <- 2
+  
+  coef_vector <- array(NA, c(number_of_examinations))
+  standard_error_vector <- array(NA, c(number_of_examinations))
+  ci_length_vector <- array(NA, c(number_of_examinations))
+  coverage_vector <- array(0, c(number_of_examinations))
+  number_of_covs_vector <- array(NA, c(number_of_examinations))
+  
+  # Generate finite sample data (score and covariates)
+  X <- 2*rbeta(1000, 2, 4)-1
+  T <- 0+(X >= 0)
+  sigma_z <- 0.1353
+  sigma_eps <- 0.1295
+  v <- 0.8*sqrt(6)*(sigma_eps)^2/(pi*c(1:200))
+  sigma_z_id_matrix <- diag(x = sigma_z^2, 200)
+  matrix_rows <- matrix(NA, 200, 201)
+  for (k in 1:200) {
+    matrix_rows[k,] <- c(v[k], sigma_z_id_matrix[k,])
+  }
+  variance_matrix <- rbind(c(sigma_eps^2, v), matrix_rows)
+  Z <- rmvnorm(1000, sigma = variance_matrix)
+  alpha <- 2/(c(1:200))^2
+  matrix_Z <- matrix(Z[,2:201], 1000, byrow = FALSE)
+  vector_alpha <- matrix(alpha, 200, 1, byrow = TRUE)
+  Z_times_alpha <- matrix_Z %*% vector_alpha
+  
+  # Define potential outcomes
+  Y_0 <- Z[,1]+0.36+0.96*X+5.47*X^2+15.28*X^3+15.87*X^4+5.14*X^5+0.22*Z_times_alpha
+  Y_1 <- Z[,1]+0.38+0.62*X-2.84*X^2+8.42*X^3-10.24*X^4+4.31*X^5+0.28*Z_times_alpha
+  
+  # Define outcome
+  Y <- (1-T)*Y_0+T*Y_1
+  
+  n <- length(Y)
+  
+  covs_with_correlation_greater_002 <- compare_correlation(matrix_Z, Y, 0.02)
+  covs_with_correlation_greater_005 <- compare_correlation(matrix_Z, Y, 0.05)
+  covs_with_correlation_greater_01 <- compare_correlation(matrix_Z, Y, 0.1)
+  covs_with_correlation_greater_02 <- compare_correlation(matrix_Z, Y, 0.2)
+  covs_with_correlation_greater_calculated_threshold <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y))
+  Z_002 <- if (length(covs_with_correlation_greater_002) == 0) NA else Z[,covs_with_correlation_greater_002]
+  Z_005 <- if (length(covs_with_correlation_greater_005) == 0) NA else Z[,covs_with_correlation_greater_005]
+  Z_01 <- if (length(covs_with_correlation_greater_01) == 0) NA else Z[,covs_with_correlation_greater_01]
+  Z_02 <- if (length(covs_with_correlation_greater_02) == 0) NA else Z[,covs_with_correlation_greater_02]
+  Z_calculated_threshold <- if (length(covs_with_correlation_greater_calculated_threshold) == 0) NA else Z[,covs_with_correlation_greater_calculated_threshold]
+  
+  covariate_settings <- list(Z_calculated_threshold, Z_02, Z_01, Z_005, Z_002, NA, as.matrix(matrix_Z[,1]), matrix_Z[,1:10], matrix_Z[,1:30], matrix_Z[,1:50], Z_times_alpha)
+  
+  if (rdd_library == "robust") {
+    counter <- 1
+    for (covariates in covariate_settings) {
+      if (all(!is.na(covariates))) {
+        rd <- rdrobust(Y, X, covs = covariates)
+      } else {
+        rd <- rdrobust(Y, X)
+      }
+      standard_error_vector[counter] <- rd$se[estimator_type]
+      coef_vector[counter] <- rd$coef[estimator_type]
+      ci_length_vector[counter] <- rd$ci[estimator_type,2]-rd$ci[estimator_type,1]
+      if (0.02>=rd$ci[estimator_type,1] && 0.02<=rd$ci[estimator_type,2]) {
+        coverage_vector[counter] = 1
+      }
+      if (length(ncol(covariates)) == 0) {
+        number_of_covs_vector[counter] <- 0
+      } else {
+        number_of_covs_vector[counter] <- ncol(covariates)
+      }
+      counter <- counter + 1
+    }
+  } else if (rdd_library == "honest") {
+    counter <- 1
+    for (covariates in covariate_settings) {
+      if (all(!is.na(covariates))) {
+        h <- RDHonest::RDHonest(Y~X)$coefficients$bandwidth
+        kernel_weights <- triangular(X/h)/h
+        cov_lm <- lm(covariates~1+X+T+X*T, weights = kernel_weights)
+        v <- cov_lm$residuals
+        sigma_Z <- t(v)%*%(v*kernel_weights)/n
+        sigma_ZY <- colSums(as.matrix(v*as.vector(kernel_weights*Y)))/n
+        gamma_n <- solve(sigma_Z)%*%sigma_ZY
+        Ytilde <- Y-covariates%*%gamma_n
+      } else {
+        Ytilde = Y
+      }
+      rd_ten_covs <- RDHonest::RDHonest(Ytilde~X)
+      
+      standard_error_vector[counter] <- rd_ten_covs$coefficients$std.error
+      coef_vector[counter] <- rd_ten_covs$coefficients$estimate
+      ci_length_vector[counter] <- rd_ten_covs$coefficients$conf.high-rd_ten_covs$coefficients$conf.low
+      if (0.02>=rd_ten_covs$coefficients$conf.low && 0.02<=rd_ten_covs$coefficients$conf.high) {
+        coverage_vector[counter] = 1
+      }
+      if (length(ncol(covariates)) == 0) {
+        number_of_covs_vector[counter] <- 0
+      } else {
+        number_of_covs_vector[counter] <- ncol(covariates)
+      }
+      counter = counter + 1
+    }
+  }
+  
+  cat("Completed run", n, "\n")
+  
+  return(matrix(c(standard_error_vector, coef_vector, ci_length_vector, coverage_vector, number_of_covs_vector), number_of_examinations, 5))
+}
+
+# Parallelization for windows systems
+cluster <- makeCluster(10)
+load_packages <- parLapply(cluster, 1:length(cluster),
+                           function(n) {
+                             require('rdrobust')
+                             require('mvtnorm')
+                           })
+clusterExport(cluster, c('perform_rdd', 'triangular', 'compare_correlation', 'calculate_correlation_thresholds', 'number_of_examinations'))
+results_list_of_matrices <- parLapply(cluster, 1:number_of_montecarlo_replications, perform_rdd)
+stopCluster(cluster)
+results_matrix <- simplify2array(results_list_of_matrices)
+
+number_of_covs <- c()
+mean_of_estimator <- c()
+bias <- c()
+standard_deviation <- c()
+standard_error <- c()
+ci_length <- c()
+coverage <- c()
+results <- matrix(NA, number_of_examinations, 6, dimnames = list(list("Cor.>calc.Th.", "Cor.>0.2", "Cor.>0.1", "Cor.>0.05", "Cor.>0.02", "0 Covs", "1 Cov", "10 Covs", "30 Covs", "50 Covs", "Opt. Cov"), list("#Covs", "Bias", "SD", "Avg. SE", "CI Length", "Coverage")))
+
+for (l in 1:number_of_examinations) {
+  number_of_covs <- append(number_of_covs, mean(results_matrix[l,5,]))
+  mean_of_estimator <- append(mean_of_estimator, mean(results_matrix[l,2,]))
+  bias <- append(bias, mean_of_estimator[l]-0.02)
+  standard_deviation <- append(standard_deviation, sqrt(mean((results_matrix[l,2,]-mean_of_estimator[l])^2)))
+  standard_error <- append(standard_error, mean(results_matrix[l,1,]))
+  ci_length <- append(ci_length, mean(results_matrix[l,3,]))
+  coverage <- append(coverage, mean(results_matrix[l,4,])*100)
+  
+  results[l,] <- c(number_of_covs[l], bias[l], standard_deviation[l], standard_error[l], ci_length[l], coverage[l])
+}
+
+results
+
+end_time <- Sys.time()
+ellapsed_time <- end_time - start_time
+cat("Ellapsed time:", ellapsed_time)
