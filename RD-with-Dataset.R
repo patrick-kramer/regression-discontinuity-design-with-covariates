@@ -28,14 +28,49 @@ calculate_correlation_thresholds <- function(Z, Y) {
   return(threshold_vector)
 }
 
+# covs_drop_fun <- function(z) {
+#   z          <- as.matrix(z)
+#   ncovs      <- ncol(z)
+#   df         <- data.frame(z = z)
+#   constant   <- rep(1,nrow(df))
+#   tmp        <- lm(constant ~ ., data=df)
+#   to_keep    <- tmp$coefficients[!is.na(tmp$coefficients)]
+#   ncovs_keep <- length(to_keep)
+#   to_keep    <- names(to_keep[2:ncovs_keep])
+#   ncovs_keep <- ncovs_keep-1
+#   covs <- as.matrix(df[to_keep])
+#   output = list(covs=covs, ncovs=ncovs_keep)
+#   return(output)
+# }
+
+covs_drop_fun_corr <- function(Z) {
+  if (all(!is.na(Z))) {
+    if(ncol(Z) > 1) {
+      cor_matrix <- cor(Z)
+      positions <- which(cor_matrix >= 0.9, arr.ind = TRUE)
+      indices_to_delete_with_duplicates <- c()
+      for (i in 1:nrow(positions)) {
+        if (positions[i,1] < positions[i,2]) {
+          indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, positions[i,2])
+        }
+      }
+      indices_to_delete <- indices_to_delete_with_duplicates[!duplicated(indices_to_delete_with_duplicates)]
+      #cat(ncol(Z), "vs", ncol(as.matrix(Z[,-indices_to_delete])), "-----")
+      return(Z[,-indices_to_delete])
+    }
+  } else {
+    return(Z)
+  }
+}
+
 start_time <- Sys.time()
 
 ## Load Data
-# data <- read_dta("./data/Card_analysis_dataset.dta")
+#data <- read_dta("./data/Card_analysis_dataset.dta")
 
 ## Restrict to sub-sample of workers with a positive unemployment spell
-data <- data[data$dunempl5>0,]
-attach(data)
+#data <- data[data$dunempl5>0,]
+#attach(data)
 
 ## Assign to those people who had no job before, a duration of the previous job of zero
 ind <- which(last_job==0)
@@ -78,7 +113,7 @@ rdd_library <- "honest"
 # 3 - Robust
 estimator_type <- 1
 
-perform_rdd <- function(X, Y, Z_basis, Z_extended) {
+perform_rdd <- function(X, Y, Z_basis, Z_extended, covs_drop = TRUE) {
   T = 0+(X >= 0)
   
   coef_vector <- array(NA, c(number_of_examinations))
@@ -101,6 +136,25 @@ perform_rdd <- function(X, Y, Z_basis, Z_extended) {
   Z_calculated_threshold <- if (length(covs_with_correlation_greater_calculated_threshold) == 0) NA else Z_extended[,covs_with_correlation_greater_calculated_threshold]
   
   covariate_settings <- list(Z_calculated_threshold, Z_02, Z_01, Z_005, Z_002, NA, Z_basis, Z_extended)
+  
+  # Check for colinearity and remove redundant covariates
+  # if (rdd_library == "honest" && covs_drop == TRUE) {
+  #   for (i in 1:length(covariate_settings)) {
+  #     covariates <- covariate_settings[[i]]
+  #     length_covs <- dim(covariates)[2]
+  #     length_covs <- if (is.null(length_covs)) 0 else length_covs
+  #     if (length_covs > 1) {
+  #       covs_without_collinearity = covs_drop_fun(covariates)
+  #       if (covs_without_collinearity$ncovs < length_covs) {
+  #         covariate_settings[[i]]  <- as.matrix(covs_without_collinearity$covs)
+  #         warning("Multicollinearity issue detected in covs. Redundant covariates dropped.")  
+  #       }
+  #     }
+  #   }
+  # }
+  if (rdd_library == "honest" && covs_drop == TRUE) {
+    covariate_settings <- lapply(covariate_settings, covs_drop_fun_corr)
+  }
   
   if (rdd_library == "robust") {
     counter <- 1
@@ -130,7 +184,7 @@ perform_rdd <- function(X, Y, Z_basis, Z_extended) {
         sigma_ZY <- colSums(as.matrix(v*as.vector(kernel_weights*Y)))/n
         gamma_n <- solve(sigma_Z)%*%sigma_ZY
         Ytilde <- Y-covariates%*%gamma_n
-        number_of_covariates[counter] = dim(covariates)[2]
+        number_of_covariates[counter] = dim(as.matrix(covariates))[2]
       } else {
         Ytilde = Y
         number_of_covariates[counter] = 0
