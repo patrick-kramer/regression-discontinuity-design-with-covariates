@@ -30,7 +30,7 @@ calculate_correlation_thresholds <- function(Z, Y) {
 start_time <- Sys.time()
 
 # Number of replications
-number_of_montecarlo_replications <- 10000
+number_of_montecarlo_replications <- 100
 
 # Number of examinations
 number_of_examinations <- 11
@@ -39,7 +39,7 @@ perform_rdd <- function(n) {
   # Library to use for RDD
   # robust - RDRobust
   # honest - RDHonest
-  rdd_library <- "robust"
+  rdd_library <- "honest"
   
   # Type of estimator (only relevant for RDRobust)
   # 1 - Conventional
@@ -151,7 +151,19 @@ perform_rdd <- function(n) {
   return(matrix(c(standard_error_vector, coef_vector, ci_length_vector, coverage_vector, number_of_covs_vector), number_of_examinations, 5))
 }
 
-results_list_of_matrices <- mclapply(1:number_of_montecarlo_replications, perform_rdd, mc.cores = 11)
+if (Sys.info()['sysname'] == "Windows") {
+  cluster <- makeCluster(11)
+  load_packages <- parLapply(cluster, 1:length(cluster),
+                             function(n) {
+                               require('rdrobust')
+                               require('mvtnorm')
+                             })
+  clusterExport(cluster, c('perform_rdd', 'triangular', 'compare_correlation', 'calculate_correlation_thresholds', 'number_of_examinations'))
+  results_list_of_matrices <- parLapply(cluster, 1:number_of_montecarlo_replications, perform_rdd)
+  stopCluster(cluster)
+} else {
+  results_list_of_matrices <- mclapply(1:number_of_montecarlo_replications, perform_rdd, mc.cores = 11)
+}
 results_matrix <- simplify2array(results_list_of_matrices)
 
 number_of_covs <- c()
