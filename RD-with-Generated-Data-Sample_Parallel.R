@@ -2,34 +2,11 @@
 library('mvtnorm')
 library('rdrobust')
 library('parallel')
+source('functions.R')
 
 #########################################
 # Define functions                      #
 #########################################
-
-triangular <- function(x) {
-  return((1-abs(x))*(abs(x)<=1))
-}
-
-compare_correlation <- function(Z, Y, threshold) {
-  correlation_coefficents <- c()
-  for (column in 1:200) {
-    diff_Z_mean <- Z[,column]-mean(Z[,column])
-    diff_Y_mean <- Y-mean(Y)
-    correlation_coefficents <- append(correlation_coefficents, sum(diff_Z_mean*diff_Y_mean)/sqrt(sum(diff_Z_mean^2)*sum(diff_Y_mean^2)))
-  }
-  return(which(correlation_coefficents>=threshold))
-}
-
-calculate_correlation_thresholds <- function(Z, Y) {
-  threshold_vector <- c()
-  for (column in 1:200) {
-    sigma <- mean(Z[,column]^2*Y^2)-(mean(Z[,column])^2)*(mean(Y)^2)
-    sdZ_sdY <- sqrt(var(Z[,column])*var(Y))
-    threshold_vector <- append(threshold_vector, (2*sqrt(sigma))/(sqrt(1000)*sdZ_sdY))
-  }
-  return(threshold_vector)
-}
 
 perform_rdd <- function(run) {
   
@@ -74,7 +51,7 @@ perform_rdd <- function(run) {
   Z_005 <- Z[,compare_correlation(matrix_Z, Y, 0.05)]
   Z_01 <- Z[,compare_correlation(matrix_Z, Y, 0.1)]
   Z_02 <- Z[,compare_correlation(matrix_Z, Y, 0.2)]
-  Z_calculated_threshold <- Z[,compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y))]
+  Z_calculated_threshold <- Z[,compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, n))]
   
   covariate_settings <- list(Z_calculated_threshold, Z_02, Z_01, Z_005, Z_002, NA, as.matrix(matrix_Z[,1]), matrix_Z[,1:10], matrix_Z[,1:30], matrix_Z[,1:50], Z_times_alpha)
   
