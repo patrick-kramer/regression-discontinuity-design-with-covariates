@@ -62,8 +62,8 @@ perform_rdd <- function(run) {
   }
   
   # Remove covariables for invertibility
-  Z_002 <- remove_covs_with_high_correlation(Z_002, 40)
-  Z_005 <- remove_covs_with_high_correlation(Z_005, 10)
+  Z_002 <- remove_covs_with_high_correlation(Z_002, 45)
+  Z_005 <- remove_covs_with_high_correlation(Z_005, 15)
   
   covariate_settings <- list(Z_calculated_threshold, Z_02, Z_01, Z_005, Z_002, NA, as.matrix(matrix_Z[,1]), matrix_Z[,1:10], matrix_Z[,1:30], matrix_Z[,1:50], Z_times_alpha)
   
