@@ -3,9 +3,10 @@ library('mvtnorm')
 library('rdrobust')
 library('parallel')
 library('haven')
+setwd(getSrcDirectory(function(){})[1])
 source('functions.R')
 
-perform_rdd <- function(X, Y, Z, drop_correlated_covs = TRUE) {
+perform_rdd <- function(X, Y, Z) {
   
   # Define treatment variable
   T = 0+(X >= 0)
@@ -18,32 +19,21 @@ perform_rdd <- function(X, Y, Z, drop_correlated_covs = TRUE) {
   standard_error_vector <- array(NA, c(number_of_examinations))
   ci_lower <- array(NA, c(number_of_examinations))
   ci_upper <- array(NA, c(number_of_examinations))
+  ci_length <- array(NA, c(number_of_examinations))
   number_of_covariates <- array(NA, c(number_of_examinations))
   
   # Select covariates
-  Z_002 <- Z[,compare_correlation(Z, Y, 0.02)]
+  Z_02 <- Z[,compare_correlation(Z, Y, 0.2)]
   Z_calculated_threshold <- Z[,compare_correlation(Z, Y, calculate_correlation_thresholds(Z, Y, length(indices)))]
   
-  covariate_settings <- list(Z_calculated_threshold, Z_002, NA, Z[,1:38], Z[,1:60])
-  
-  # Check for colinearity and remove redundant covariates
-  # if (rdd_library == "honest" && drop_correlated_covs == TRUE) {
-  #   for (i in 1:length(covariate_settings)) {
-  #     covariates <- covariate_settings[[i]]
-  #     length_covs <- dim(covariates)[2]
-  #     length_covs <- if (is.null(length_covs)) 0 else length_covs
-  #     if (length_covs > 1) {
-  #       covs_without_collinearity = remove_linearly_dependent_covs(covariates)
-  #       if (covs_without_collinearity$ncovs < length_covs) {
-  #         covariate_settings[[i]]  <- as.matrix(covs_without_collinearity$covs)
-  #         warning("Multicollinearity issue detected in covs. Redundant covariates dropped.")  
-  #       }
-  #     }
-  #   }
-  # }
-  if (rdd_library == "honest" && drop_correlated_covs == TRUE) {
-    covariate_settings <- lapply(covariate_settings, remove_covs_with_high_correlation)
+  if (rdd_library == "honest") {
+    Z_calculated_threshold <- remove_covs_with_correlation_larger_threshold(Z_calculated_threshold, 0.9)
+    Z_extended <- remove_covs_with_high_correlation(Z[,1:60], 3)
   }
+  
+  covariate_settings <- list(Z_calculated_threshold, Z_02, NA, Z[,1:38], Z_extended)
+  
+  gc()
   
   if (rdd_library == "robust") {
     counter <- 1
@@ -59,6 +49,7 @@ perform_rdd <- function(X, Y, Z, drop_correlated_covs = TRUE) {
       coef_vector[counter] <- rd$coef[estimator_type]
       ci_lower[counter] <- rd$ci[estimator_type,1]
       ci_upper[counter] <- rd$ci[estimator_type,2]
+      ci_length[counter] <- ci_upper[counter]-ci_lower[counter]
       counter <- counter + 1
     }
   } else if (rdd_library == "honest") {
@@ -84,11 +75,12 @@ perform_rdd <- function(X, Y, Z, drop_correlated_covs = TRUE) {
       coef_vector[counter] <- rd$coefficients$estimate
       ci_lower[counter] <- rd$coefficients$conf.low
       ci_upper[counter] <- rd$coefficients$conf.high
+      ci_length[counter] <- ci_upper[counter]-ci_lower[counter]
       counter = counter + 1
     }
   }
   
-  return(matrix(c(number_of_covariates ,coef_vector, standard_error_vector, ci_lower, ci_upper), number_of_examinations, 5))
+  return(matrix(c(number_of_covariates ,coef_vector, standard_error_vector, ci_lower, ci_upper, ci_length), number_of_examinations, 6))
 }
 
 start_time <- Sys.time()
@@ -130,15 +122,22 @@ X <- dten1
 # Indices of all observations with no entry of NA
 indices <- which(apply(!is.na(cbind(X, Y, Xpaper_extended)), 1, all))
 
+rm("data", "input_data")
+gc()
+
 # Calculate interaction terms for basic and extended covariates
-#Z_interaction <- interaction_terms(Xpaper_extended[indices,])
+Z_interaction <- interaction_terms(Xpaper_basis[indices,])
+Z_interaction <- Z_interaction[, colSums(Z_interaction != 0) > 0]
+# Z_interaction <- Z_interaction[!duplicated(as.list(Z_interaction))]
 
 # Calculate fourier bases for basic and extended covariates
-#Z_fourier <- fourier_basis(Xpaper_extended[indices,], 5)
+Z_fourier <- fourier_basis(Xpaper_extended[indices, c("lwage", "lwage2")], 5)
 
 # Join the interaction terms and fourier bases
-# Z <- cbind(Xpaper_extended[indices,], Z_interaction, Z_fourier)
-Z <- Xpaper_extended[indices,]
+Z <- cbind(Xpaper_extended[indices,], Z_interaction, Z_fourier)
+
+rm('Xpaper_basis', "Xpaper_extended")
+gc()
 
 # Number of examinations
 number_of_examinations <- 5
@@ -154,12 +153,9 @@ rdd_library <- "honest"
 # 3 - Robust
 estimator_type <- 1
 
-rm('Xpaper_basis', "Xpaper_extended", "data", "input_data")
-gc()
-
 # Results
 results <- perform_rdd(X[indices], Y[indices], Z)
-dimnames(results) <- list(list("Cor.>calc.Th.", "Cor.>0.02", "0 Covs", "Basic Covs", "Extended Covs"), list("#Covs", "Estimator", "Avg. SE", "CI Lower", "CI Upper"))
+dimnames(results) <- list(list("Cor.>calc.Th.", "Cor.>0.2", "0 Covs", "Basic Covs", "Extended Covs"), list("#Covs", "Estimator", "Avg. SE", "CI Lower", "CI Upper", "CI Length"))
 
 # Print results
 results
