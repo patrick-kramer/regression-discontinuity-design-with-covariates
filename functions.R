@@ -17,24 +17,57 @@ calculate_correlation_thresholds <- function(Z, Y, data_size) {
   for (column in 1:dim(Z)[2]) {
     sigma <- mean(Z[,column]^2*Y^2)-(mean(Z[,column])^2)*(mean(Y)^2)
     sdZ_sdY <- sqrt(var(Z[,column])*var(Y))
-    threshold_vector <- append(threshold_vector, (2*sqrt(sigma))/(sqrt(data_size)*sdZ_sdY))
+    threshold_vector <- append(threshold_vector, (3*sqrt(sigma))/(sqrt(data_size)*sdZ_sdY))
   }
   return(threshold_vector)
 }
 
-remove_covs_with_high_correlation <- function(Z) {
+remove_covs_with_high_correlation <- function(Z, number) {
+  if (isTRUE(ncol(Z)>=1)) {
+    covariates_to_delete <- c()
+    cor_matrix <- abs(cor(Z))
+    covariates_to_delete <- append(covariates_to_delete, which(colSums(is.na(cor_matrix)) == nrow(cor_matrix)-1))
+    cor_matrix[,covariates_to_delete] <- 0
+    cor_matrix[covariates_to_delete,] <- 0
+    number <- number - length(covariates_to_delete)
+    if (number > 0) {
+      for (i in 1:nrow(cor_matrix)) {
+        for (j in 1:i) {
+          cor_matrix[i,j] <- 0
+        }
+      }
+      for (i in 1:number) {
+        index <- which(cor_matrix == max(cor_matrix), arr.ind = TRUE)
+        covariates_to_delete <- append(covariates_to_delete, index[[1,2]])
+        cor_matrix[index[1,2],] <- 0
+        cor_matrix[,index[1,2]] <- 0
+      }
+    }
+    warning("Removed ", length(covariates_to_delete), " covariates.")
+    return(Z[,-covariates_to_delete])
+  } else {
+    return(Z)
+  }
+}
+
+remove_covs_with_correlation_larger_threshold <- function(Z, threshold) {
   if (isTRUE(ncol(Z)>1)) {
     cor_matrix <- cor(Z)
-    positions <- which(cor_matrix >= 0.9, arr.ind = TRUE)
+    pos <- which(abs(cor_matrix) >= threshold, arr.ind = TRUE)
+    pos_ordered <- pos[order(pos[,1], pos[,2]),]
     indices_to_delete_with_duplicates <- c()
-    for (i in 1:nrow(positions)) {
-      if (positions[i,1] < positions[i,2]) {
-        indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, positions[i,2])
+    for (i in 1:nrow(pos_ordered)) {
+      if (pos_ordered[i,1] < pos_ordered[i,2] && !(pos_ordered[i,1] %in% indices_to_delete_with_duplicates)) {
+        indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, pos_ordered[i,2])
       }
     }
     indices_to_delete <- indices_to_delete_with_duplicates[!duplicated(indices_to_delete_with_duplicates)]
-    warning("Covariates with high correlation detected. Deleted ", length(indices_to_delete), "duplicates.")
-    return(Z[,-indices_to_delete])
+    if (length(indices_to_delete)>0) {
+      warning("Covariates with high correlation detected. Deleted ", length(indices_to_delete), "duplicates.")
+      return(Z[,-indices_to_delete])
+    } else {
+      return(Z)
+    }
   } else {
     return(Z)
   }
@@ -43,13 +76,17 @@ remove_covs_with_high_correlation <- function(Z) {
 remove_linearly_dependent_covs <- function(Z) {
   Z <- as.matrix(Z)
   ncovs <- ncol(Z)
-  df <- data.frame(z = Z)
-  constant <- rep(1,nrow(df))
-  tmp <- lm(constant ~ ., data=df)
-  to_keep <- tmp$coefficients[!is.na(tmp$coefficients)]
-  ncovs_keep <- length(to_keep)
-  to_keep <- names(to_keep[2:ncovs_keep])
-  return(list(covs=as.matrix(df[to_keep]), ncovs=ncovs_keep-1))
+  if (ncovs >= 2) {
+    df <- data.frame(z = Z)
+    constant <- rep(1,nrow(df))
+    tmp <- lm(constant ~ ., data=df)
+    to_keep <- tmp$coefficients[!is.na(tmp$coefficients)]
+    ncovs_keep <- length(to_keep)
+    to_keep <- names(to_keep[2:ncovs_keep])
+    return(as.matrix(df[to_keep]))
+  } else {
+    return(Z)
+  }
 }
 
 interaction_terms <- function(Z) {

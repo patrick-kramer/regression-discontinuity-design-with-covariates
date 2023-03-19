@@ -2,6 +2,7 @@
 library('mvtnorm')
 library('rdrobust')
 library('parallel')
+setwd(getSrcDirectory(function(){})[1])
 source('functions.R')
 
 #########################################
@@ -16,6 +17,7 @@ perform_rdd <- function(run) {
   ci_length_vector <- array(NA, c(number_of_examinations))
   coverage_vector <- array(0, c(number_of_examinations))
   number_of_covs_vector <- array(NA, c(number_of_examinations))
+  selected_covs_vector <- array(0, c(200))
   
   # Generate finite sample data (score and covariates)
   X <- 2*rbeta(1000, 2, 4)-1
@@ -51,7 +53,17 @@ perform_rdd <- function(run) {
   Z_005 <- Z[,compare_correlation(matrix_Z, Y, 0.05)]
   Z_01 <- Z[,compare_correlation(matrix_Z, Y, 0.1)]
   Z_02 <- Z[,compare_correlation(matrix_Z, Y, 0.2)]
-  Z_calculated_threshold <- Z[,compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, n))]
+  selected_indices_threshold_method <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, n))
+  Z_calculated_threshold <- Z[, selected_indices_threshold_method]
+  
+  # Store information about selected covariates
+  for (index in selected_indices_threshold_method) {
+    selected_covs_vector[index] <- selected_covs_vector[index] + 1
+  }
+  
+  # Remove covariables for invertibility
+  Z_002 <- remove_covs_with_high_correlation(Z_002, 40)
+  Z_005 <- remove_covs_with_high_correlation(Z_005, 10)
   
   covariate_settings <- list(Z_calculated_threshold, Z_02, Z_01, Z_005, Z_002, NA, as.matrix(matrix_Z[,1]), matrix_Z[,1:10], matrix_Z[,1:30], matrix_Z[,1:50], Z_times_alpha)
   
@@ -107,8 +119,9 @@ perform_rdd <- function(run) {
       counter = counter + 1
     }
   }
+  results_of_run <- matrix(c(standard_error_vector, coef_vector, ci_length_vector, coverage_vector, number_of_covs_vector), number_of_examinations, 5)
   
-  return(matrix(c(standard_error_vector, coef_vector, ci_length_vector, coverage_vector, number_of_covs_vector), number_of_examinations, 5))
+  return(list(res = results_of_run, sel = selected_covs_vector))
 }
 
 #########################################
@@ -118,7 +131,7 @@ perform_rdd <- function(run) {
 start_time <- Sys.time()
 
 # Number of replications
-number_of_montecarlo_replications <- 100
+number_of_montecarlo_replications <- 10000
 
 # Library to use for RDD
 # robust - RDRobust
@@ -149,7 +162,10 @@ if (Sys.info()['sysname'] == "Windows") {
 } else {
   results_list_of_matrices <- mclapply(1:number_of_montecarlo_replications, perform_rdd, mc.cores = 11)
 }
-results_matrix <- simplify2array(results_list_of_matrices)
+results_list <- lapply(results_list_of_matrices, function(x) { x <- x[[1]] })
+selection_list <- lapply(results_list_of_matrices, function(x) { x <- x[[2]] })
+results_matrix <- simplify2array(results_list)
+selection_matrix <- simplify2array(selection_list)
 
 # Initialize vectors for result storage
 number_of_covs <- c()
@@ -173,6 +189,9 @@ for (l in 1:number_of_examinations) {
   
   results[l,] <- c(number_of_covs[l], bias[l], standard_deviation[l], standard_error[l], ci_length[l], coverage[l])
 }
+
+# Sum up selection matrix
+selection <- rowSums(selection_matrix)*100/number_of_montecarlo_replications
 
 # Print results
 results
