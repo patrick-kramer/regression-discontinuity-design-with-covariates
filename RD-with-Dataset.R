@@ -24,7 +24,7 @@ perform_rdd <- function(X, Y, Z) {
   
   # Select covariates
   Z_02 <- Z[,compare_correlation(Z, Y, 0.2)]
-  Z_calculated_threshold <- Z[,compare_correlation(Z, Y, calculate_correlation_thresholds(Z, Y, sqrt(indices)))]
+  Z_calculated_threshold <- Z[,compare_correlation(Z, Y, calculate_correlation_thresholds(Z, Y, length(indices)))]
   
   if (rdd_library == "honest") {
     Z_calculated_threshold <- remove_covs_with_correlation_larger_threshold(Z_calculated_threshold, 0.9)
