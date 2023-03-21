@@ -27,7 +27,7 @@ perform_rdd <- function(X, Y, Z) {
   Z_calculated_threshold <- Z[,compare_correlation(Z, Y, calculate_correlation_thresholds(Z, Y, length(indices)))]
   
   if (rdd_library == "honest") {
-    Z_calculated_threshold <- remove_covs_with_correlation_larger_threshold(Z_calculated_threshold, 0.9)
+    Z_calculated_threshold <- remove_covs_calculated_threshold(Z_calculated_threshold, length(indices))
     Z_extended <- remove_covs_with_high_correlation(Z[,1:60], 3)
   }
   
@@ -121,20 +121,58 @@ X <- dten1
 
 # Indices of all observations with no entry of NA
 indices <- which(apply(!is.na(cbind(X, Y, Xpaper_extended)), 1, all))
+indices <- sample(indices, 10000)
 
 rm("data", "input_data")
 gc()
 
-# Calculate interaction terms for basic and extended covariates
-Z_interaction <- interaction_terms(Xpaper_basis[indices,])
+# # Calculate interaction terms for basic and extended covariates
+# Z_interaction <- interaction_terms(Xpaper_basis[indices,])
+# Z_interaction <- Z_interaction[, colSums(Z_interaction != 0) > 0]
+# Z_interaction_df <- as.data.frame(Z_interaction)
+# Z_interaction_df <- Z_interaction_df[!duplicated(as.list(Z_interaction_df))]
+# Z_interaction <- as.matrix(Z_interaction_df)
+# 
+# # Calculate fourier bases for basic and extended covariates
+# Z_fourier <- fourier_basis(Xpaper_extended[indices, c("lwage", "lwage2")], 5)
+# 
+# # Join the interaction terms and fourier bases
+# Z <- cbind(Xpaper_extended[indices,], Z_interaction, Z_fourier)
+
+Z_interaction <- cbind(interaction_terms(cbind(age,age2,lwage,lwage2,experience,exper2,last_noneduration,last_breaks,
+                                         firms,female,married,austrian,bluecollar,last_job,last_bluec,last_posnonedur,last_recall,high_ed))[indices,],
+                       cross_interactions(cbind(age,age2,lwage,lwage2,experience,exper2,last_noneduration,last_breaks,
+                         firms,female,married,austrian,bluecollar,last_job,last_bluec,last_posnonedur,last_recall,high_ed),cbind(endmo_dum2,endmo_dum3,endmo_dum4, endmo_dum5,endmo_dum6,endmo_dum7,
+                                                                                                                                 endmo_dum8,endmo_dum9,endmo_dum10, endmo_dum11,endmo_dum12,
+                                                                                                                                 endy_dum3,endy_dum4,endy_dum5, endy_dum6,endy_dum7,endy_dum8,endy_dum9,
+                                                                                                                                 endy_dum10,endy_dum11, endy_dum12,endy_dum13,endy_dum14,endy_dum15,
+                                                                                                                                 endy_dum16, endy_dum17,endy_dum18,endy_dum19, endy_dum20,endy_dum21,
+                                                                                                                                 iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale,
+                                                                                                                                 reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6,
+                                                                                                                                 firms2,firms3,firms4, firms5,firms6),ident="Basic")[indices,],
+                       cross_interactions(cbind(endmo_dum2,endmo_dum3,endmo_dum4, endmo_dum5,endmo_dum6,endmo_dum7,
+                         endmo_dum8,endmo_dum9,endmo_dum10, endmo_dum11,endmo_dum12),cbind(endy_dum3,endy_dum4,endy_dum5, endy_dum6,endy_dum7,endy_dum8,endy_dum9,
+                                                                                           endy_dum10,endy_dum11, endy_dum12,endy_dum13,endy_dum14,endy_dum15,
+                                                                                           endy_dum16, endy_dum17,endy_dum18,endy_dum19, endy_dum20,endy_dum21,
+                                                                                           iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale,
+                                                                                           reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6,
+                                                                                           firms2,firms3,firms4, firms5,firms6),ident="endmo")[indices,],
+                        cross_interactions(cbind(endy_dum3,endy_dum4,endy_dum5, endy_dum6,endy_dum7,endy_dum8,endy_dum9,
+                         endy_dum10,endy_dum11, endy_dum12,endy_dum13,endy_dum14,endy_dum15,
+                         endy_dum16, endy_dum17,endy_dum18,endy_dum19, endy_dum20,endy_dum21),cbind(iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale,
+                                                                                                    reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6,
+                                                                                                    firms2,firms3,firms4, firms5,firms6),ident="endy")[indices,],
+                        cross_interactions(cbind(iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale),cbind(reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6,
+                                                                                                     firms2,firms3,firms4, firms5,firms6),ident="sector")[indices,],
+                        cross_interactions(cbind(reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6),cbind(firms2,firms3,firms4, firms5,firms6),ident="region")[indices,])
+
 Z_interaction <- Z_interaction[, colSums(Z_interaction != 0) > 0]
-# Z_interaction <- Z_interaction[!duplicated(as.list(Z_interaction))]
 
-# Calculate fourier bases for basic and extended covariates
-Z_fourier <- fourier_basis(Xpaper_extended[indices, c("lwage", "lwage2")], 5)
+Z_fourier <- fourier_basis(cbind(lwage,lwage2),5)[indices,]
 
-# Join the interaction terms and fourier bases
-Z <- cbind(Xpaper_extended[indices,], Z_interaction, Z_fourier)
+# Create High-Dimensional Covariate set
+Z <- cbind(Xpaper_extended[indices,],firms2[indices],firms3[indices],firms4[indices], firms5[indices],firms6[indices],
+           Z_fourier, Z_interaction)
 
 rm('Xpaper_basis', "Xpaper_extended")
 gc()

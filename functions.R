@@ -22,6 +22,18 @@ calculate_correlation_thresholds <- function(Z, Y, data_size) {
   return(threshold_vector)
 }
 
+calculate_correlation_threshold_matrix <- function(Z, data_size) {
+  threshold_matrix <- matrix(0, nrow=ncol(Z), ncol = ncol(Z))
+  for (i in 1:ncol(Z)) {
+    for (j in i:ncol(Z)) {
+      sigma <- mean(Z[,i]^2*Z[,j]^2)-(mean(Z[,i])^2)*(mean(Z[,j])^2)
+      sdZ <- sqrt(var(Z[,i])*var(Z[,j]))
+      threshold_matrix[i,j] <- (3*sqrt(sigma))/(sqrt(data_size)*sdZ)
+    }
+  }
+  return(threshold_matrix)
+}
+
 remove_covs_with_high_correlation <- function(Z, number) {
   if (isTRUE(ncol(Z)>=1)) {
     covariates_to_delete <- c()
@@ -73,6 +85,32 @@ remove_covs_with_correlation_larger_threshold <- function(Z, threshold) {
   }
 }
 
+remove_covs_calculated_threshold <- function(Z, data_size) {
+  if (isTRUE(ncol(Z)>1)) {
+    cor_matrix <- cor(Z)
+    pos <- which(abs(cor_matrix) >= calculate_correlation_threshold_matrix(Z, data_size), arr.ind = TRUE)
+    pos_ordered <- pos[order(pos[,1], pos[,2]),]
+    indices_to_delete_with_duplicates <- c()
+    for (i in 1:nrow(pos_ordered)) {
+      # if (pos_ordered[i,1] < pos_ordered[i,2] && !(pos_ordered[i,1] %in% indices_to_delete_with_duplicates)) {
+      #   indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, pos_ordered[i,2])
+      # }
+      if (pos_ordered[i,1] < pos_ordered[i,2]) {
+        indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, pos_ordered[i,2])
+      }
+    }
+    indices_to_delete <- indices_to_delete_with_duplicates[!duplicated(indices_to_delete_with_duplicates)]
+    if (length(indices_to_delete)>0) {
+      warning("Covariates with high correlation detected. Deleted ", length(indices_to_delete), "duplicates.")
+      return(Z[,-indices_to_delete])
+    } else {
+      return(Z)
+    }
+  } else {
+    return(Z)
+  }
+}
+
 remove_linearly_dependent_covs <- function(Z) {
   Z <- as.matrix(Z)
   ncovs <- ncol(Z)
@@ -103,6 +141,25 @@ interaction_terms <- function(Z) {
       col_count <- col_count+1
     }
   }
+  return(out)
+}
+
+cross_interactions <- function(Z1,Z2,ident="") {
+  p1 <- dim(Z1)[2]
+  p2 <- dim(Z2)[2]
+  n <- dim(Z1)[1]
+  
+  out <- matrix(NA,nrow=n,ncol=p1*p2)
+  colnames(out) <- rep("a",p1*p2)
+  col_count <- 1
+  for(i in 1:p1) {
+    for(j in 1:p2) {
+      out[,col_count] <- Z1[,i]*Z2[,j]
+      colnames(out)[col_count] <- sprintf("CI %s: %d * %d",ident,i,j)
+      col_count <- col_count+1
+    }
+  }
+  
   return(out)
 }
 
