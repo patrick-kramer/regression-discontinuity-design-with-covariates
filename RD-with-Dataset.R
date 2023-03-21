@@ -25,13 +25,14 @@ perform_rdd <- function(X, Y, Z) {
   # Select covariates
   Z_02 <- Z[,compare_correlation(Z, Y, 0.2)]
   Z_calculated_threshold <- Z[,compare_correlation(Z, Y, calculate_correlation_thresholds(Z, Y, length(indices)))]
+  Z_calculated_threshold_and_deletion_simple <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, length(indices), simple_deletion = TRUE))
+  Z_calculated_threshold_and_deletion <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, length(indices), simple_deletion = FALSE))
+  Z_extended <- remove_covs_with_high_correlation(Z[,1:60], 3)
   
-  if (rdd_library == "honest") {
-    Z_calculated_threshold <- remove_covs_calculated_threshold(Z_calculated_threshold, length(indices))
-    Z_extended <- remove_covs_with_high_correlation(Z[,1:60], 3)
-  }
+  cat("Selected covariates before deletion: ", ncol(Z_calculated_threshold), "\n")
+  cat("Selected covariates after deletion: ", ncol(Z_calculated_threshold_and_deletion), "\n")
   
-  covariate_settings <- list(Z_calculated_threshold, Z_02, NA, Z[,1:38], Z_extended)
+  covariate_settings <- list(Z_calculated_threshold_and_deletion, Z_calculated_threshold_and_deletion_simple, Z_02, NA, Z[,1:38], Z_extended)
   
   gc()
   
@@ -178,7 +179,7 @@ rm('Xpaper_basis', "Xpaper_extended")
 gc()
 
 # Number of examinations
-number_of_examinations <- 5
+number_of_examinations <- 6
 
 # Library to use for RDD
 # robust - RDRobust
@@ -193,7 +194,7 @@ estimator_type <- 1
 
 # Results
 results <- perform_rdd(X[indices], Y[indices], Z)
-dimnames(results) <- list(list("Cor.>calc.Th.", "Cor.>0.2", "0 Covs", "Basic Covs", "Extended Covs"), list("#Covs", "Estimator", "Avg. SE", "CI Lower", "CI Upper", "CI Length"))
+dimnames(results) <- list(list("Th+Del", "Th+Del Simple", "Cor.>0.2", "0 Covs", "Basic Covs", "Extended Covs"), list("#Covs", "Estimator", "Avg. SE", "CI Lower", "CI Upper", "CI Length"))
 
 # Print results
 results

@@ -2,12 +2,17 @@ triangular <- function(x) {
   return((1-abs(x))*(abs(x)<=1))
 }
 
+calculate_correlation <- function(A, B) {
+  diff_A_mean <- A-mean(A)
+  diff_B_mean <- B-mean(B)
+  correlation_coefficent <- sum(diff_A_mean*diff_B_mean)/sqrt(sum(diff_A_mean^2)*sum(diff_B_mean^2))
+  return(correlation_coefficent)
+}
+
 compare_correlation <- function(Z, Y, threshold) {
   correlation_coefficents <- c()
   for (column in 1:dim(Z)[2]) {
-    diff_Z_mean <- Z[,column]-mean(Z[,column])
-    diff_Y_mean <- Y-mean(Y)
-    correlation_coefficents <- append(correlation_coefficents, sum(diff_Z_mean*diff_Y_mean)/sqrt(sum(diff_Z_mean^2)*sum(diff_Y_mean^2)))
+    correlation_coefficents <- append(correlation_coefficents, calculate_correlation(Z[,column], Y))
   }
   return(which(abs(correlation_coefficents)>=threshold))
 }
@@ -28,7 +33,9 @@ calculate_correlation_threshold_matrix <- function(Z, data_size) {
     for (j in i:ncol(Z)) {
       sigma <- mean(Z[,i]^2*Z[,j]^2)-(mean(Z[,i])^2)*(mean(Z[,j])^2)
       sdZ <- sqrt(var(Z[,i])*var(Z[,j]))
-      threshold_matrix[i,j] <- (3*sqrt(sigma))/(sqrt(data_size)*sdZ)
+      corr_coeff <- (3*sqrt(sigma))/(sqrt(data_size)*sdZ)
+      threshold_matrix[i,j] <- corr_coeff
+      threshold_matrix[j,i] <- corr_coeff
     }
   }
   return(threshold_matrix)
@@ -85,18 +92,31 @@ remove_covs_with_correlation_larger_threshold <- function(Z, threshold) {
   }
 }
 
-remove_covs_calculated_threshold <- function(Z, data_size) {
+remove_covs_calculated_threshold <- function(Z, Y, data_size, simple_deletion = TRUE) {
   if (isTRUE(ncol(Z)>1)) {
     cor_matrix <- cor(Z)
     pos <- which(abs(cor_matrix) >= calculate_correlation_threshold_matrix(Z, data_size), arr.ind = TRUE)
-    pos_ordered <- pos[order(pos[,1], pos[,2]),]
+    if (simple_deletion) {
+      pos_ordered <- pos
+    } else {
+      pos_ordered <- pos[order(abs(vapply(pos[,1], function(x) { calculate_correlation(Z[,x],Y) }, numeric(1))), decreasing = TRUE),]
+    }
     indices_to_delete_with_duplicates <- c()
     for (i in 1:nrow(pos_ordered)) {
-      # if (pos_ordered[i,1] < pos_ordered[i,2] && !(pos_ordered[i,1] %in% indices_to_delete_with_duplicates)) {
-      #   indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, pos_ordered[i,2])
-      # }
-      if (pos_ordered[i,1] < pos_ordered[i,2]) {
-        indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, pos_ordered[i,2])
+      if (simple_deletion) {
+        if (pos_ordered[i,1] < pos_ordered[i,2]) {
+          correlation_one <- abs(calculate_correlation(Z[,pos_ordered[i,1]], Y))
+          correlation_two <- abs(calculate_correlation(Z[,pos_ordered[i,2]], Y))
+          if (correlation_one <= correlation_two) {
+            indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, pos_ordered[i,1])
+          } else {
+            indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, pos_ordered[i,2])
+          }
+        }
+      } else {
+        if ((pos_ordered[i,1] != pos_ordered[i,2]) && !(pos_ordered[i,1] %in% indices_to_delete_with_duplicates)) {
+          indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, pos_ordered[i,2])
+        }
       }
     }
     indices_to_delete <- indices_to_delete_with_duplicates[!duplicated(indices_to_delete_with_duplicates)]

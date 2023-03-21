@@ -20,7 +20,7 @@ perform_rdd <- function(run) {
   selected_covs_vector <- array(0, c(200))
   
   # Generate finite sample data (score and covariates)
-  X <- 2*rbeta(1000, 2, 4)-1
+  X <- 2*rbeta(sample_size, 2, 4)-1
   T <- 0+(X >= 0)
   sigma_z <- 0.1353
   sigma_eps <- 0.1295
@@ -31,9 +31,9 @@ perform_rdd <- function(run) {
     matrix_rows[k,] <- c(v[k], sigma_z_id_matrix[k,])
   }
   variance_matrix <- rbind(c(sigma_eps^2, v), matrix_rows)
-  Z <- rmvnorm(1000, sigma = variance_matrix)
+  Z <- rmvnorm(sample_size, sigma = variance_matrix)
   alpha <- 2/(c(1:200))^2
-  matrix_Z <- matrix(Z[,2:201], 1000, byrow = FALSE)
+  matrix_Z <- matrix(Z[,2:201], sample_size, byrow = FALSE)
   vector_alpha <- matrix(alpha, 200, 1, byrow = TRUE)
   Z_times_alpha <- matrix_Z %*% vector_alpha
   
@@ -43,18 +43,16 @@ perform_rdd <- function(run) {
   
   # Define outcome
   Y <- (1-T)*Y_0+T*Y_1
-  
-  # Store number of data entries
-  n <- length(Y)
 
-  
   # Select covariates
   Z_002 <- Z[,compare_correlation(matrix_Z, Y, 0.02)]
   Z_005 <- Z[,compare_correlation(matrix_Z, Y, 0.05)]
   Z_01 <- Z[,compare_correlation(matrix_Z, Y, 0.1)]
   Z_02 <- Z[,compare_correlation(matrix_Z, Y, 0.2)]
-  selected_indices_threshold_method <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, n))
+  selected_indices_threshold_method <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, sample_size))
   Z_calculated_threshold <- Z[, selected_indices_threshold_method]
+  Z_calculated_threshold_and_deletion_simple <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = TRUE)
+  Z_calculated_threshold_and_deletion <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = FALSE)
   
   # Store information about selected covariates
   for (index in selected_indices_threshold_method) {
@@ -62,10 +60,24 @@ perform_rdd <- function(run) {
   }
   
   # Remove covariables for invertibility
-  Z_002 <- remove_covs_with_high_correlation(Z_002, 45)
-  Z_005 <- remove_covs_with_high_correlation(Z_005, 15)
+  if (sample_size == 1000) {
+    Z_002 <- remove_covs_with_high_correlation(Z_002, 45)
+    Z_005 <- remove_covs_with_high_correlation(Z_005, 15)
+  }
   
-  covariate_settings <- list(Z_calculated_threshold, Z_02, Z_01, Z_005, Z_002, NA, as.matrix(matrix_Z[,1]), matrix_Z[,1:10], matrix_Z[,1:30], matrix_Z[,1:50], Z_times_alpha)
+  covariate_settings <- list(as.matrix(Z_calculated_threshold),
+                             as.matrix(Z_calculated_threshold_and_deletion),
+                             as.matrix(Z_calculated_threshold_and_deletion_simple),
+                             as.matrix(Z_02),
+                             as.matrix(Z_01),
+                             as.matrix(Z_005),
+                             as.matrix(Z_002),
+                             NA,
+                             as.matrix(matrix_Z[,1]),
+                             matrix_Z[,1:10],
+                             matrix_Z[,1:30],
+                             matrix_Z[,1:50],
+                             Z_times_alpha)
   
   if (rdd_library == "robust") {
     counter <- 1
@@ -96,8 +108,8 @@ perform_rdd <- function(run) {
         kernel_weights <- triangular(X/h)/h
         cov_lm <- lm(covariates~1+X+T+X*T, weights = kernel_weights)
         v <- cov_lm$residuals
-        sigma_Z <- t(v)%*%(v*kernel_weights)/n
-        sigma_ZY <- colSums(as.matrix(v*as.vector(kernel_weights*Y)))/n
+        sigma_Z <- t(v)%*%(v*kernel_weights)/sample_size
+        sigma_ZY <- colSums(as.matrix(v*as.vector(kernel_weights*Y)))/sample_size
         gamma_n <- solve(sigma_Z)%*%sigma_ZY
         Ytilde <- Y-covariates%*%gamma_n
       } else {
@@ -133,10 +145,13 @@ start_time <- Sys.time()
 # Number of replications
 number_of_montecarlo_replications <- 100
 
+# Sample size n
+sample_size <-10000
+
 # Library to use for RDD
 # robust - RDRobust
 # honest - RDHonest
-rdd_library <- "robust"
+rdd_library <- "honest"
 
 # Type of estimator (only relevant for RDRobust)
 # 1 - Conventional
@@ -145,7 +160,7 @@ rdd_library <- "robust"
 estimator_type <- 1
 
 # Number of examinations
-number_of_examinations <- 11
+number_of_examinations <- 13
 
 
 # Perform parallized RDD
@@ -175,7 +190,7 @@ standard_deviation <- c()
 standard_error <- c()
 ci_length <- c()
 coverage <- c()
-results <- matrix(NA, number_of_examinations, 6, dimnames = list(list("Cor.>calc.Th.", "Cor.>0.2", "Cor.>0.1", "Cor.>0.05", "Cor.>0.02", "0 Covs", "1 Cov", "10 Covs", "30 Covs", "50 Covs", "Opt. Cov"), list("#Covs", "Bias", "SD", "Avg. SE", "CI Length", "Coverage")))
+results <- matrix(NA, number_of_examinations, 6, dimnames = list(list("Cor.>calc.Th.", "Th+Del", "Th+Del Simple", "Cor.>0.2", "Cor.>0.1", "Cor.>0.05", "Cor.>0.02", "0 Covs", "1 Cov", "10 Covs", "30 Covs", "50 Covs", "Opt. Cov"), list("#Covs", "Bias", "SD", "Avg. SE", "CI Length", "Coverage")))
 
 # Store results in a matrix
 for (l in 1:number_of_examinations) {
