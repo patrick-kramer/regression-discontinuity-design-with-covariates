@@ -17,7 +17,7 @@ perform_rdd <- function(run) {
   ci_length_vector <- array(NA, c(number_of_examinations))
   coverage_vector <- array(0, c(number_of_examinations))
   number_of_covs_vector <- array(NA, c(number_of_examinations))
-  selected_covs_vector <- array(0, c(200))
+  selected_covs_vector <- matrix(0, 200, 3)
   
   # Generate finite sample data (score and covariates)
   X <- 2*rbeta(sample_size, 2, 4)-1
@@ -31,32 +31,43 @@ perform_rdd <- function(run) {
     matrix_rows[k,] <- c(v[k], sigma_z_id_matrix[k,])
   }
   variance_matrix <- rbind(c(sigma_eps^2, v), matrix_rows)
-  Z <- rmvnorm(sample_size, sigma = variance_matrix)
+  Z_epsilon <- rmvnorm(sample_size, sigma = variance_matrix)
   alpha <- 2/(c(1:200))^2
-  matrix_Z <- matrix(Z[,2:201], sample_size, byrow = FALSE)
+  matrix_Z <- matrix(Z_epsilon[,2:201], sample_size, byrow = FALSE)
   vector_alpha <- matrix(alpha, 200, 1, byrow = TRUE)
   Z_times_alpha <- matrix_Z %*% vector_alpha
   
   # Define potential outcomes
-  Y_0 <- Z[,1]+0.36+0.96*X+5.47*X^2+15.28*X^3+15.87*X^4+5.14*X^5+0.22*Z_times_alpha
-  Y_1 <- Z[,1]+0.38+0.62*X-2.84*X^2+8.42*X^3-10.24*X^4+4.31*X^5+0.28*Z_times_alpha
+  Y_0 <- Z_epsilon[,1]+0.36+0.96*X+5.47*X^2+15.28*X^3+15.87*X^4+5.14*X^5+0.22*Z_times_alpha
+  Y_1 <- Z_epsilon[,1]+0.38+0.62*X-2.84*X^2+8.42*X^3-10.24*X^4+4.31*X^5+0.28*Z_times_alpha
   
   # Define outcome
   Y <- (1-T)*Y_0+T*Y_1
+  
+  # Set column names of Z
+  colnames(matrix_Z) <- c(1:200)
 
   # Select covariates
-  Z_002 <- Z[,compare_correlation(matrix_Z, Y, 0.02)]
-  Z_005 <- Z[,compare_correlation(matrix_Z, Y, 0.05)]
-  Z_01 <- Z[,compare_correlation(matrix_Z, Y, 0.1)]
-  Z_02 <- Z[,compare_correlation(matrix_Z, Y, 0.2)]
+  Z_002 <- matrix_Z[,compare_correlation(matrix_Z, Y, 0.02)]
+  Z_005 <- matrix_Z[,compare_correlation(matrix_Z, Y, 0.05)]
+  Z_01 <- matrix_Z[,compare_correlation(matrix_Z, Y, 0.1)]
+  Z_02 <- matrix_Z[,compare_correlation(matrix_Z, Y, 0.2)]
   selected_indices_threshold_method <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, sample_size))
-  Z_calculated_threshold <- Z[, selected_indices_threshold_method]
+  Z_calculated_threshold <- matrix_Z[, selected_indices_threshold_method]
   Z_calculated_threshold_and_deletion_simple <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = TRUE)
   Z_calculated_threshold_and_deletion <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = FALSE)
   
   # Store information about selected covariates
   for (index in selected_indices_threshold_method) {
-    selected_covs_vector[index] <- selected_covs_vector[index] + 1
+    selected_covs_vector[index, 1] <- selected_covs_vector[index, 1] + 1
+  }
+  indices_after_deletion_simple <- as.numeric(colnames(Z_calculated_threshold_and_deletion_simple))
+  indices_after_deletion <- as.numeric(colnames(Z_calculated_threshold_and_deletion))
+  for (index in indices_after_deletion) {
+    selected_covs_vector[index, 2] <- selected_covs_vector[index, 2] + 1
+  }
+  for (index in indices_after_deletion_simple) {
+    selected_covs_vector[index, 3] <- selected_covs_vector[index, 3] + 1
   }
   
   # Remove covariables for invertibility
@@ -143,10 +154,10 @@ perform_rdd <- function(run) {
 start_time <- Sys.time()
 
 # Number of replications
-number_of_montecarlo_replications <- 100
+number_of_montecarlo_replications <- 1000
 
 # Sample size n
-sample_size <-10000
+sample_size <-1000
 
 # Library to use for RDD
 # robust - RDRobust
@@ -206,7 +217,7 @@ for (l in 1:number_of_examinations) {
 }
 
 # Sum up selection matrix
-selection <- rowSums(selection_matrix)*100/number_of_montecarlo_replications
+selection <- rowSums(selection_matrix, dims = 2)*100/number_of_montecarlo_replications
 
 # Print results
 results
