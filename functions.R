@@ -17,23 +17,23 @@ compare_correlation <- function(Z, Y, threshold) {
   return(which(abs(correlation_coefficents)>=threshold))
 }
 
-calculate_correlation_thresholds <- function(Z, Y, data_size) {
+calculate_correlation_thresholds <- function(Z, Y, factor, data_size) {
   threshold_vector <- c()
   for (column in 1:dim(Z)[2]) {
     sigma <- mean(Z[,column]^2*Y^2)-(mean(Z[,column])^2)*(mean(Y)^2)
     sdZ_sdY <- sqrt(var(Z[,column])*var(Y))
-    threshold_vector <- append(threshold_vector, (3*sqrt(sigma))/(sqrt(data_size)*sdZ_sdY))
+    threshold_vector <- append(threshold_vector, (factor*sqrt(sigma))/(sqrt(data_size)*sdZ_sdY))
   }
   return(threshold_vector)
 }
 
-calculate_correlation_threshold_matrix <- function(Z, data_size) {
+calculate_correlation_threshold_matrix <- function(Z, factor, data_size) {
   threshold_matrix <- matrix(0, nrow=ncol(Z), ncol = ncol(Z))
   for (i in 1:ncol(Z)) {
     for (j in i:ncol(Z)) {
       sigma <- mean(Z[,i]^2*Z[,j]^2)-(mean(Z[,i])^2)*(mean(Z[,j])^2)
       sdZ <- sqrt(var(Z[,i])*var(Z[,j]))
-      corr_coeff <- (3*sqrt(sigma))/(sqrt(data_size)*sdZ)
+      corr_coeff <- (factor*sqrt(sigma))/(sqrt(data_size)*sdZ)
       threshold_matrix[i,j] <- corr_coeff
       threshold_matrix[j,i] <- corr_coeff
     }
@@ -92,10 +92,10 @@ remove_covs_with_correlation_larger_threshold <- function(Z, threshold) {
   }
 }
 
-remove_covs_calculated_threshold <- function(Z, Y, data_size, simple_deletion = TRUE) {
+remove_covs_calculated_threshold <- function(Z, Y, factor, data_size, simple_deletion = TRUE) {
   if (isTRUE(ncol(Z)>1)) {
     cor_matrix <- cor(Z)
-    pos <- which(abs(cor_matrix) >= calculate_correlation_threshold_matrix(Z, data_size), arr.ind = TRUE)
+    pos <- which(abs(cor_matrix) >= calculate_correlation_threshold_matrix(Z, factor, data_size), arr.ind = TRUE)
     if (simple_deletion) {
       pos_ordered <- pos
     } else {
