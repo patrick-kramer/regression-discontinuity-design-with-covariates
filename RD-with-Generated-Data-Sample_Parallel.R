@@ -52,10 +52,10 @@ perform_rdd <- function(run) {
   Z_005 <- matrix_Z[,compare_correlation(matrix_Z, Y, 0.05)]
   Z_01 <- matrix_Z[,compare_correlation(matrix_Z, Y, 0.1)]
   Z_02 <- matrix_Z[,compare_correlation(matrix_Z, Y, 0.2)]
-  selected_indices_threshold_method <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, factor, sample_size))
+  selected_indices_threshold_method <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, sample_size))
   Z_calculated_threshold <- matrix_Z[, selected_indices_threshold_method]
-  Z_calculated_threshold_and_deletion_simple <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, factor, sample_size, simple_deletion = TRUE)
-  Z_calculated_threshold_and_deletion <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, factor, sample_size, simple_deletion = FALSE)
+  Z_calculated_threshold_and_deletion_simple <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = TRUE)
+  Z_calculated_threshold_and_deletion <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = FALSE)
   
   # Store information about selected covariates
   for (index in selected_indices_threshold_method) {
@@ -158,9 +158,6 @@ number_of_montecarlo_replications <- 100
 
 # Sample size n
 sample_size <-1000
-
-# Factor used in the correlation threshold
-factor <- 1.96
 
 # Library to use for RDD
 # robust - RDRobust

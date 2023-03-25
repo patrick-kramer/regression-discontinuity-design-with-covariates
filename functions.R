@@ -17,7 +17,13 @@ compare_correlation <- function(Z, Y, threshold) {
   return(which(abs(correlation_coefficents)>=threshold))
 }
 
-calculate_correlation_thresholds <- function(Z, Y, factor, data_size) {
+calculate_correlation_thresholds <- function(Z, Y, data_size) {
+  # Calculate factor for confidence interval
+  p <- ncol(Z)
+  # Bonferroni correction
+  alpha_ind <- 0.05 / p
+  factor <- qnorm(1-(alpha_ind / 2))
+  
   threshold_vector <- c()
   for (column in 1:dim(Z)[2]) {
     sigma <- mean(Z[,column]^2*Y^2)-(mean(Z[,column])^2)*(mean(Y)^2)
@@ -27,7 +33,14 @@ calculate_correlation_thresholds <- function(Z, Y, factor, data_size) {
   return(threshold_vector)
 }
 
-calculate_correlation_threshold_matrix <- function(Z, factor, data_size) {
+calculate_correlation_threshold_matrix <- function(Z, data_size) {
+  # Calculate factor for confidence interval
+  s <- ncol(Z)
+  N <- s*(s-1)*0.5
+  # Bonferroni correction
+  alpha_ind <- 0.05 / N
+  factor <- qnorm(1-(alpha_ind / 2))
+  
   threshold_matrix <- matrix(0, nrow=ncol(Z), ncol = ncol(Z))
   for (i in 1:ncol(Z)) {
     for (j in i:ncol(Z)) {
@@ -92,10 +105,10 @@ remove_covs_with_correlation_larger_threshold <- function(Z, threshold) {
   }
 }
 
-remove_covs_calculated_threshold <- function(Z, Y, factor, data_size, simple_deletion = TRUE) {
+remove_covs_calculated_threshold <- function(Z, Y, data_size, simple_deletion = TRUE) {
   if (isTRUE(ncol(Z)>1)) {
     cor_matrix <- cor(Z)
-    pos <- which(abs(cor_matrix) >= calculate_correlation_threshold_matrix(Z, factor, data_size), arr.ind = TRUE)
+    pos <- which(abs(cor_matrix) >= calculate_correlation_threshold_matrix(Z, data_size), arr.ind = TRUE)
     if (simple_deletion) {
       pos_ordered <- pos
     } else {

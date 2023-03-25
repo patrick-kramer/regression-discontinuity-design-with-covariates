@@ -24,9 +24,9 @@ perform_rdd <- function(X, Y, Z) {
   
   # Select covariates
   Z_02 <- Z[,compare_correlation(Z, Y, 0.2)]
-  Z_calculated_threshold <- Z[,compare_correlation(Z, Y, calculate_correlation_thresholds(Z, Y, factor, length(indices)))]
-  Z_calculated_threshold_and_deletion_simple <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, factor, length(indices), simple_deletion = TRUE))
-  Z_calculated_threshold_and_deletion <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, factor, length(indices), simple_deletion = FALSE))
+  Z_calculated_threshold <- Z[,compare_correlation(Z, Y, calculate_correlation_thresholds(Z, Y, length(indices)))]
+  Z_calculated_threshold_and_deletion_simple <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, length(indices), simple_deletion = TRUE))
+  Z_calculated_threshold_and_deletion <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, length(indices), simple_deletion = FALSE))
   Z_extended <- remove_covs_with_high_correlation(Z[,1:60], 3)
   
   cat("Selected covariates before deletion: ", ncol(Z_calculated_threshold), "\n")
@@ -122,7 +122,7 @@ X <- dten1
 
 # Indices of all observations with no entry of NA
 indices <- which(apply(!is.na(cbind(X, Y, Xpaper_extended)), 1, all))
-indices <- sample(indices, 10000)
+indices <- sample(indices, 100000)
 
 rm("data", "input_data")
 gc()
@@ -180,9 +180,6 @@ gc()
 
 # Number of examinations
 number_of_examinations <- 6
-
-# Factor used for correlation threshold
-factor <- 4
 
 # Library to use for RDD
 # robust - RDRobust
