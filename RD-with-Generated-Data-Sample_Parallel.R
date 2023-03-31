@@ -154,15 +154,15 @@ perform_rdd <- function(run) {
 start_time <- Sys.time()
 
 # Number of replications
-number_of_montecarlo_replications <- 100
+number_of_montecarlo_replications <- 10000
 
 # Sample size n
-sample_size <-1000
+sample_size <-10000
 
 # Library to use for RDD
 # robust - RDRobust
 # honest - RDHonest
-rdd_library <- "robust"
+rdd_library <- "honest"
 
 # Type of estimator (only relevant for RDRobust)
 # 1 - Conventional
