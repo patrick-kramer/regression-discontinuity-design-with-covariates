@@ -135,7 +135,7 @@ remove_covs_calculated_threshold <- function(Z, Y, data_size, simple_deletion = 
     indices_to_delete <- indices_to_delete_with_duplicates[!duplicated(indices_to_delete_with_duplicates)]
     if (length(indices_to_delete)>0) {
       warning("Covariates with high correlation detected. Deleted ", length(indices_to_delete), "duplicates.")
-      return(Z[,-indices_to_delete])
+      return(Z[,-indices_to_delete, drop=FALSE])
     } else {
       return(Z)
     }
@@ -170,7 +170,7 @@ interaction_terms <- function(Z) {
   for (i in 1:(p-1)) {
     for (j in (i+1):p) {
       out[,col_count] <- Z[,i]*Z[,j]
-      colnames(out)[col_count] <- sprintf("IT %d*%d",i,j)
+      colnames(out)[col_count] <- sprintf("IT %s*%s",colnames(Z)[[i]],colnames(Z)[[j]])
       col_count <- col_count+1
     }
   }
@@ -188,7 +188,7 @@ cross_interactions <- function(Z1,Z2,ident="") {
   for(i in 1:p1) {
     for(j in 1:p2) {
       out[,col_count] <- Z1[,i]*Z2[,j]
-      colnames(out)[col_count] <- sprintf("CI %s: %d * %d",ident,i,j)
+      colnames(out)[col_count] <- sprintf("CI %s: %s * %s",ident,colnames(Z1)[[i]],colnames(Z2)[[j]])
       col_count <- col_count+1
     }
   }

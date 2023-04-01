@@ -29,8 +29,7 @@ perform_rdd <- function(X, Y, Z) {
   Z_calculated_threshold_and_deletion <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, length(indices), simple_deletion = FALSE))
   Z_extended <- remove_covs_with_high_correlation(Z[,1:60], 3)
   
-  cat("Selected covariates before deletion: ", ncol(Z_calculated_threshold), "\n")
-  cat("Selected covariates after deletion: ", ncol(Z_calculated_threshold_and_deletion), "\n")
+  cat("Selected covariates by (CCT): ", ncol(Z_calculated_threshold), "\n")
   
   covariate_settings <- list(Z_calculated_threshold_and_deletion, Z_calculated_threshold_and_deletion_simple, Z_02, NA, Z[,1:38], Z_extended)
   
@@ -81,7 +80,8 @@ perform_rdd <- function(X, Y, Z) {
     }
   }
   
-  return(matrix(c(number_of_covariates ,coef_vector, standard_error_vector, ci_lower, ci_upper, ci_length), number_of_examinations, 6))
+  return(list(res = matrix(c(number_of_covariates ,coef_vector, standard_error_vector, ci_lower, ci_upper, ci_length), number_of_examinations, 6),
+              sel = list(cctsd = colnames(Z_calculated_threshold_and_deletion_simple), cctad = colnames(Z_calculated_threshold_and_deletion))))
 }
 
 start_time <- Sys.time()
@@ -149,31 +149,28 @@ Z_interaction <- cbind(interaction_terms(cbind(age,age2,lwage,lwage2,experience,
                                                                                                                                  endy_dum10,endy_dum11, endy_dum12,endy_dum13,endy_dum14,endy_dum15,
                                                                                                                                  endy_dum16, endy_dum17,endy_dum18,endy_dum19, endy_dum20,endy_dum21,
                                                                                                                                  iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale,
-                                                                                                                                 reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6,
-                                                                                                                                 firms2,firms3,firms4, firms5,firms6),ident="Basic")[indices,],
+                                                                                                                                 reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6),ident="Basic")[indices,],
                        cross_interactions(cbind(endmo_dum2,endmo_dum3,endmo_dum4, endmo_dum5,endmo_dum6,endmo_dum7,
                          endmo_dum8,endmo_dum9,endmo_dum10, endmo_dum11,endmo_dum12),cbind(endy_dum3,endy_dum4,endy_dum5, endy_dum6,endy_dum7,endy_dum8,endy_dum9,
                                                                                            endy_dum10,endy_dum11, endy_dum12,endy_dum13,endy_dum14,endy_dum15,
                                                                                            endy_dum16, endy_dum17,endy_dum18,endy_dum19, endy_dum20,endy_dum21,
                                                                                            iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale,
-                                                                                           reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6,
-                                                                                           firms2,firms3,firms4, firms5,firms6),ident="endmo")[indices,],
+                                                                                           reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6),ident="endmo")[indices,],
                         cross_interactions(cbind(endy_dum3,endy_dum4,endy_dum5, endy_dum6,endy_dum7,endy_dum8,endy_dum9,
                          endy_dum10,endy_dum11, endy_dum12,endy_dum13,endy_dum14,endy_dum15,
                          endy_dum16, endy_dum17,endy_dum18,endy_dum19, endy_dum20,endy_dum21),cbind(iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale,
-                                                                                                    reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6,
-                                                                                                    firms2,firms3,firms4, firms5,firms6),ident="endy")[indices,],
-                        cross_interactions(cbind(iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale),cbind(reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6,
-                                                                                                     firms2,firms3,firms4, firms5,firms6),ident="sector")[indices,],
-                        cross_interactions(cbind(reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6),cbind(firms2,firms3,firms4, firms5,firms6),ident="region")[indices,])
+                                                                                                    reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6),ident="endy")[indices,],
+                        cross_interactions(cbind(iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale),cbind(reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6),ident="sector")[indices,])
 
 Z_interaction <- Z_interaction[, colSums(Z_interaction != 0) > 0]
 
 Z_fourier <- fourier_basis(cbind(lwage,lwage2),5)[indices,]
 
+#Z_firms <- cbind(firms2[indices],firms3[indices],firms4[indices], firms5[indices],firms6[indices])
+#colnames(Z_firms) <- c("firms2", "firms3", "firms4", "firms5", "firms6")
+
 # Create High-Dimensional Covariate set
-Z <- cbind(Xpaper_extended[indices,],firms2[indices],firms3[indices],firms4[indices], firms5[indices],firms6[indices],
-           Z_fourier, Z_interaction)
+Z <- cbind(Xpaper_extended[indices,], Z_fourier, Z_interaction)
 
 rm('Xpaper_basis', "Xpaper_extended")
 gc()
@@ -192,12 +189,20 @@ rdd_library <- "honest"
 # 3 - Robust
 estimator_type <- 1
 
+output <- perform_rdd(X[indices], Y[indices], Z)
+
 # Results
-results <- perform_rdd(X[indices], Y[indices], Z)
+results <- output[['res']]
 dimnames(results) <- list(list("Th+Del", "Th+Del Simple", "Cor.>0.2", "0 Covs", "Basic Covs", "Extended Covs"), list("#Covs", "Estimator", "Avg. SE", "CI Lower", "CI Upper", "CI Length"))
 
 # Print results
 results
+
+# Selection results
+selection <- output[['sel']]
+
+# Print selection
+selection
 
 end_time <- Sys.time()
 ellapsed_time <- end_time - start_time

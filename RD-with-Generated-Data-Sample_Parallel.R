@@ -154,10 +154,10 @@ perform_rdd <- function(run) {
 start_time <- Sys.time()
 
 # Number of replications
-number_of_montecarlo_replications <- 10000
+number_of_montecarlo_replications <- 100
 
 # Sample size n
-sample_size <-10000
+sample_size <-1000
 
 # Library to use for RDD
 # robust - RDRobust
