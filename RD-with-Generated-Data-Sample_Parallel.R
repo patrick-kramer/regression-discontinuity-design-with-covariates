@@ -3,7 +3,7 @@ library('mvtnorm')
 library('rdrobust')
 library('parallel')
 setwd(getSrcDirectory(function(){})[1])
-source('functions.R')
+source('R/functions.R')
 
 #########################################
 # Define functions                      #

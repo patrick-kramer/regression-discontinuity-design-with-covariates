@@ -4,7 +4,7 @@ library('rdrobust')
 library('parallel')
 library('haven')
 setwd(getSrcDirectory(function(){})[1])
-source('functions.R')
+source('R/functions.R')
 
 perform_rdd <- function(X, Y, Z) {
   
@@ -88,7 +88,7 @@ start_time <- Sys.time()
 
 if (!exists('input_data')) {
   # Load Data
-  input_data <- read_dta("./data/Card_analysis_dataset.dta")
+  input_data <- read_dta("data/Card_analysis_dataset.dta")
   
   # Restrict to sub-sample of workers with a positive unemployment spell
   data <- input_data[input_data$dunempl5>0,]
@@ -122,7 +122,7 @@ X <- dten1
 
 # Indices of all observations with no entry of NA
 indices <- which(apply(!is.na(cbind(X, Y, Xpaper_extended)), 1, all))
-indices <- sample(indices, 100000)
+indices <- sample(indices, 10000)
 
 rm("data", "input_data")
 gc()
@@ -169,7 +169,7 @@ Z_fourier <- fourier_basis(cbind(lwage,lwage2),5)[indices,]
 #Z_firms <- cbind(firms2[indices],firms3[indices],firms4[indices], firms5[indices],firms6[indices])
 #colnames(Z_firms) <- c("firms2", "firms3", "firms4", "firms5", "firms6")
 
-# Create High-Dimensional Covariate set
+# Create High-Dimensional covariate set
 Z <- cbind(Xpaper_extended[indices,], Z_fourier, Z_interaction)
 
 rm('Xpaper_basis', "Xpaper_extended")

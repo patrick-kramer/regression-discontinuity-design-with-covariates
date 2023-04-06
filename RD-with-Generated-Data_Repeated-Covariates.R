@@ -3,7 +3,7 @@ library('mvtnorm')
 library('rdrobust')
 library('parallel')
 setwd(getSrcDirectory(function(){})[1])
-source('functions.R')
+source('R/functions.R')
 
 #########################################
 # Define functions                      #
@@ -145,7 +145,7 @@ perform_rdd <- function(run) {
 start_time <- Sys.time()
 
 # Number of replications
-number_of_montecarlo_replications <- 10000
+number_of_montecarlo_replications <- 100
 
 # Sample size n
 sample_size <- 1000
