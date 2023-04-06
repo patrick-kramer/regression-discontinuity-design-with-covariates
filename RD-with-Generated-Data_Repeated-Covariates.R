@@ -117,7 +117,7 @@ standard_deviation <- c()
 standard_error <- c()
 ci_length <- c()
 coverage <- c()
-results <- matrix(NA, number_of_examinations, 6, dimnames = list(list("Cor.>calc.Th.", "Th+Del", "Th+Del Simple"), list("#Covs", "Bias", "SD", "Avg. SE", "CI Length", "Coverage")))
+results <- matrix(NA, number_of_examinations, 6, dimnames = list(list("(CCT)", "(CCTAD)", "(CCTSD)"), list("#Covs", "Bias", "SD", "Avg. SE", "CI Length", "Coverage")))
 
 # Store results in a matrix
 # Iterate over each of the covariate settings examined
@@ -143,6 +143,8 @@ for (l in 1:number_of_examinations) {
 
 # Calculate percentages, with which each covariate got chosen by the respective selection procedures
 selection <- rowSums(selection_matrix, dims = 2)*100/number_of_montecarlo_replications
+# Assign column names to selection matrix
+colnames(selection) <- c("(CCT)", "(CCTAD)", "(CCTSD)")
 
 # Print results on covariate selection
 selection
