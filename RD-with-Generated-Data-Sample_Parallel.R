@@ -10,7 +10,8 @@
 #    does not work.                                                           #
 #  - The directory where this file is stored must contain a folder 'R'        #
 #    which contains the files 'functions.R' and 'RDD_functions.R'             #
-#  - The packages mvtnorm, rdrobust and parallel need to be installed.        #
+#  - The packages mvtnorm, rdrobust, RDHonest, parallel and utils need to be  #
+#    installed.                                                               #
 #    Those only need to be installed manually in case the below installation  #
 #    does not work properly due to incompatibilities.                         #
 ###############################################################################
