@@ -1,4 +1,4 @@
-#' Computes the triangular kernel
+#' Compute the triangular kernel
 #'
 #' @param x The argument passed to the triangular kernel function.
 #'
@@ -15,9 +15,6 @@ triangular <- function(x) {
 #'
 #' @return Sample correlation coefficient of A and B
 #' @export
-#'
-#' @examples
-#' calculate_correlation(c(1,2,3),c(3,2,1))
 calculate_correlation <- function(A, B) {
   diff_A_mean <- A-mean(A)
   diff_B_mean <- B-mean(B)
@@ -55,19 +52,19 @@ calculate_correlation_thresholds <- function(Z, Y, data_size) {
 }
 
 #' Calculate sample correlation coefficient of each covariate with the outcome
-#' and check whether it is greater or equal a certain threshold
+#' and check whether it is greater or equal a threshold
 #'
 #' @param Z The covariates matrix of dimension nxp
 #' @param Y The outcome vector of dimension n
 #' @param threshold The threshold vector of dimension n
 #'
-#' @return Returns indices of covariates which have a correlation to the outcome
-#'         greater or equal to the according threshold
+#' @return Returns indices of covariates which have a sample correlation to the
+#'         outcome greater or equal the according threshold
 #' @export
 compare_correlation <- function(Z, Y, threshold) {
   correlation_coefficents <- c()
   
-  # Iterate over all columns of the covariate matrix Z
+  # Iterate over all covariates
   for (column in 1:dim(Z)[2]) {
     # Append the calculated sample correlation coefficient
     correlation_coefficents <- append(correlation_coefficents,
@@ -99,7 +96,7 @@ calculate_correlation_threshold_matrix <- function(Z, data_size) {
   # Iterate over all pairs of covariates (without considering order)
   for (i in 1:ncol(Z)) {
     for (j in i:ncol(Z)) {
-      # Calculate the deletion tresholds according to Section 8.3.2
+      # Calculate the deletion thresholds according to Section 8.3.2
       sigma <- mean(Z[,i]^2*Z[,j]^2)-(mean(Z[,i])^2)*(mean(Z[,j])^2)
       sdZ <- sqrt(var(Z[,i])*var(Z[,j]))
       corr_coeff <- (factor*sqrt(sigma))/(sqrt(data_size)*sdZ)
@@ -120,22 +117,23 @@ calculate_correlation_threshold_matrix <- function(Z, data_size) {
 #' @param simple_deletion When set to TRUE, simple deletion is applied (Section
 #'                        8.3.2), otherwise advanced deletion (Section 8.3.3)
 #'
-#' @return The remaining set of covariates after the deletion
+#' @return The remaining covariates after deletion
 #' @export
 remove_covs_calculated_threshold <- function(Z, Y, data_size, simple_deletion = TRUE) {
   if (isTRUE(ncol(Z)>1)) {
     # Calculate correlation matrix for the covariates
     cor_matrix <- cor(Z)
     
-    # Store positions of the pairs having the absolute value of the sample correlation greater than the
-    # calculated threshold
+    # Store positions of the pairs having the absolute value of the sample
+    # correlation greater than the calculated threshold
     pos <- which(abs(cor_matrix) >= calculate_correlation_threshold_matrix(Z, data_size), arr.ind = TRUE)
     
     if (simple_deletion) {
-      # In case of simple deletion, just keep all those positions
+      # In case of simple deletion, there is no need to order the positions
       pos_ordered <- pos
     } else {
-      # In case of advanced deletion, sort them according to the correlation to the outcome
+      # In case of advanced deletion, sort them according to the correlation
+      # to the outcome
       pos_ordered <- pos[order(abs(vapply(pos[,1],
                                           function(x) { calculate_correlation(Z[,x],Y) },
                                           numeric(1))),
@@ -147,8 +145,8 @@ remove_covs_calculated_threshold <- function(Z, Y, data_size, simple_deletion = 
     # Iterate over all stored positions
     for (i in 1:nrow(pos_ordered)) {
       if (simple_deletion) {
-        # In case of simple deletion, delete the covariate with the smaller absolute value of correlation
-        # to the outcome.
+        # In case of simple deletion, delete the covariate with the smaller
+        # absolute value of correlation to the outcome.
         # Store the indices of the covariates that have to be deleted.
         if (pos_ordered[i,1] < pos_ordered[i,2]) {
           correlation_one <- abs(calculate_correlation(Z[,pos_ordered[i,1]], Y))
@@ -160,8 +158,9 @@ remove_covs_calculated_threshold <- function(Z, Y, data_size, simple_deletion = 
           }
         }
       } else {
-        # In case of advanced deletion, delete the covariate with the smaller absolute value of correlation
-        # to the outcome, but just if the other covariate contained in the pair has not been deleted yet.
+        # In case of advanced deletion, delete the covariate with the smaller
+        # absolute value of sample correlation to the outcome, but just if the
+        # other covariate contained in the pair has not been deleted yet.
         # Store the indices of the covariates that have to be deleted.
         if ((pos_ordered[i,1] != pos_ordered[i,2]) && !(pos_ordered[i,1] %in% indices_to_delete_with_duplicates)) {
           indices_to_delete_with_duplicates <- append(indices_to_delete_with_duplicates, pos_ordered[i,2])
@@ -209,13 +208,13 @@ interaction_terms <- function(Z) {
   return(ia_terms)
 }
 
-#' Compute cross interaction terms of two sets of covariates
+#' Compute cross-interaction terms of two sets of covariates
 #'
 #' @param Z1 The covariate matrix 1 of dimension n x p1
 #' @param Z2 The covariate matrix 2 of dimension n x p2
 #' @param ident String for naming the resulting columns
 #'
-#' @return All cross interaction terms structured as a matrix
+#' @return All cross-interaction terms structured as a matrix
 #' @export
 cross_interactions <- function(Z1,Z2,ident="") {
   # Store the numbers of covariates
@@ -275,14 +274,15 @@ fourier_basis <- function(Z, order) {
   return(trig_transformations)
 }
 
-#' Removes a certain amount of covariates with the highest correlations to other
-#' covariates. This function is just used to ensure invertibility in some cases
-#' as described in the paragraph "Numerical invertibility" of Section 9.1.
+#' Removes a certain amount of covariates with the highest sample correlation
+#' to another covariate. This function is just used to ensure invertibility in
+#' some cases as described in the paragraph "Numerical invertibility" of
+#' Section 9.1.
 #'
 #' @param Z The covariate matrix of dimension nxp
 #' @param number The number of covariates to be deleted
 #'
-#' @return Returns the remaining covariates after deletion
+#' @return The remaining covariates after deletion
 #' @export
 remove_covs_with_high_correlation <- function(Z, number) {
   if (isTRUE(ncol(Z)>=1)) {

@@ -45,7 +45,7 @@ source('R/RDD_functions.R')
 # Configure number of Monte Carlo replications
 # Setting for Section 9.2.1: 10000
 # Setting for Section 9.2.2: 10000
-number_of_montecarlo_replications <- 100
+number_of_montecarlo_replications <- 10000
 
 # Configure sample size of the generated data
 # Setting for Section 9.2.1: 1000

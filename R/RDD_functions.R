@@ -1,20 +1,21 @@
 #' This function executes a RD analysis on generated data including covariates
 #' chosen by different selection procedures.
 #'
-#' @param run Indicates the number of execution when being executed parallel
+#' @param run The number of execution when executed multiple times in parallel
 #' @param sample_size The sample size
 #' @param rdd_library The R package to use for the RD analysis. Possible values
 #'                    are "honest" for the package RDHonest and "robust" for
 #'                    the package RDRobust.
 #' @param estimator_type This parameter is just relevant when using RDRobust
-#'                       (otherwise it can be ignored). It indicates the estimator
-#'                       type used in the RD analysis. Possible values are:
+#'                       (otherwise it can be ignored). It indicates the
+#'                       estimator type used in the RD analysis.
+#'                       Possible values are:
 #'                       1 - for conventional estimator
 #'                       2 - for bias-corrected estimator
 #'                       3 - for robust estimator
 #'
-#' @return This functions returns the results of the RD analysis (estimation, bias, standard
-#'         deviation, standard error, confidence intervals, coverage) as well as
+#' @return The results of the RD analysis (estimation, bias, standard deviation,
+#'         standard error, confidence intervals, coverage) and
 #'         the results on the selection of covariates
 #' @export
 perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type = 1) {
@@ -52,7 +53,7 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
   # Define outcome
   Y <- (1-T)*Y_0+T*Y_1
   
-  # Set column names of Z
+  # Set column names for covariates
   colnames(matrix_Z) <- c(1:200)
   
   # Select covariates according to different selection procedures
@@ -65,14 +66,16 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
   # Procedure: Correlation threshold of 0.2
   Z_02 <- matrix_Z[,compare_correlation(matrix_Z, Y, 0.2)]
   # Procedure (CCT): Calculated correlation threshold (Section 8.3.1 of the thesis)
-  selected_indices_threshold_method <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, sample_size))
+  selected_indices_threshold_method <- compare_correlation(matrix_Z, Y,
+                                                           calculate_correlation_thresholds(matrix_Z, Y, sample_size))
   Z_calculated_threshold <- matrix_Z[, selected_indices_threshold_method]
   # Procedure (CCTSD): Calculated correlation threshold with simple deletion (Section 8.3.2 of the thesis)
   Z_calculated_threshold_and_deletion_simple <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = TRUE)
   # Procedure (CCTAD): Calculated correlation threshold with advanced deletion (Section 8.3.3 of the thesis)
   Z_calculated_threshold_and_deletion <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = FALSE)
   
-  # Raise variable which counts how often a covariate was selected by the respective procedures
+  # Raise variable which counts how often a covariate was selected by the
+  # respective procedures.
   # Counter for selection via calculated threshold (Section 8.3.1)
   for (index in selected_indices_threshold_method) {
     selected_covs_vector[index, 1] <- selected_covs_vector[index, 1] + 1
@@ -124,12 +127,12 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
       }
       # Store standard error of the estimation
       standard_error_vector[counter] <- rd$se[estimator_type]
-      # Store estimated average treatment effect
+      # Store estimation of the average treatment effect
       coef_vector[counter] <- rd$coef[estimator_type]
       # Store length of confidence interval
       ci_length_vector[counter] <- rd$ci[estimator_type,2]-rd$ci[estimator_type,1]
-      # If the true average treatment effect is inside the interval, raise the counter
-      # Later on, this helps to calculate the coverage
+      # If the true average treatment effect is inside the interval, raise the counter.
+      # Later on, this helps to calculate the coverage.
       if (0.02>=rd$ci[estimator_type,1] && 0.02<=rd$ci[estimator_type,2]) {
         coverage_vector[counter] = 1
       }
@@ -148,8 +151,8 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
     # Iterate over all covariate settings
     for (covariates in covariate_settings) {
       if (isTRUE(ncol(covariates)>0)) {
-        # Store bandwidth which is taken for RDD without covariates
-        # By default RDHonest chooses this bandwidth MSE-optimal
+        # Store preliminary bandwidth which is taken for RDD without covariates.
+        # By default, RDHonest chooses this bandwidth MSE-optimal.
         h <- RDHonest::RDHonest(Y~X)$coefficients$bandwidth
         # Calculate the covariate adjustment according to Definition 7.2
         # in Section 7.1
@@ -169,12 +172,12 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
       
       # Store standard error
       standard_error_vector[counter] <- rdd$coefficients$std.error
-      # Store estimation of average treatment effect
+      # Store estimation of the average treatment effect
       coef_vector[counter] <- rdd$coefficients$estimate
       # Store length of the confidence interval
       ci_length_vector[counter] <- rdd$coefficients$conf.high-rdd$coefficients$conf.low
-      # If the true average treatment effect is inside the interval, raise the counter
-      # Later on, this helps to calculate the coverage
+      # If the true average treatment effect is inside the interval, raise the counter.
+      # Later on, this helps to calculate the coverage.
       if (0.02>=rdd$coefficients$conf.low && 0.02<=rdd$coefficients$conf.high) {
         coverage_vector[counter] = 1
       }
@@ -199,23 +202,24 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
 }
 
 #' This function executes a RD analysis on generated data including
-#' covariates chosen by different selection procedures from a set of redundant
-#' covariates.
+#' covariates chosen from a set of redundant covariates by different selection
+#' procedures
 #'
-#' @param run Indicates the number of execution when being executed parallel
+#' @param run The number of execution when executed multiple times in parallel
 #' @param sample_size The sample size
 #' @param rdd_library The R package to use for the RD analysis. Possible values
 #'                    are "honest" for the package RDHonest and "robust" for
 #'                    the package RDRobust.
 #' @param estimator_type This parameter is just relevant when using RDRobust
-#'                       (otherwise it can be ignored). It indicates the estimator
-#'                       type used in the RD analysis. Possible values are:
+#'                       (otherwise it can be ignored). It indicates the
+#'                       estimator type used in the RD analysis.
+#'                       Possible values are:
 #'                       1 - for conventional estimator
 #'                       2 - for bias-corrected estimator
 #'                       3 - for robust estimator
 #'
-#' @return This functions returns the results of the RD analysis (estimation, bias, standard
-#'         deviation, standard error, confidence intervals, coverage) as well as
+#' @return The results of the RD analysis (estimation, bias, standard deviation,
+#'         standard error, confidence intervals, coverage) and
 #'         the results on the selection of covariates
 #' @export
 perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "honest", estimator_type = 1) {
@@ -260,12 +264,13 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
     matrix_Z <- cbind(matrix_Z, first_twenty_covs)
   }
   
-  # Set column names of Z
+  # Set column names for covariates
   colnames(matrix_Z) <- c(1:200)
   
   # Select covariates according to different selection procedures
   # Procedure (CCT): Calculated correlation threshold (Section 8.3.1 of the thesis)
-  selected_indices_threshold_method <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, sample_size))
+  selected_indices_threshold_method <- compare_correlation(matrix_Z, Y,
+                                                           calculate_correlation_thresholds(matrix_Z, Y, sample_size))
   Z_calculated_threshold <- matrix_Z[, selected_indices_threshold_method]
   # Procedure (CCTSD): Calculated correlation threshold with simple deletion (Section 8.3.2 of the thesis)
   Z_calculated_threshold_and_deletion_simple <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = TRUE)
@@ -325,12 +330,12 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
       }
       # Store standard error of the estimation
       standard_error_vector[counter] <- rd$se[estimator_type]
-      # Store estimated average treatment effect
+      # Store estimation of the average treatment effect
       coef_vector[counter] <- rd$coef[estimator_type]
       # Store length of confidence interval
       ci_length_vector[counter] <- rd$ci[estimator_type,2]-rd$ci[estimator_type,1]
-      # If the true average treatment effect is inside the interval, raise the counter
-      # Later on, this helps to calculate the coverage
+      # If the true average treatment effect is inside the interval, raise the counter.
+      # Later on, this helps to calculate the coverage.
       if (0.02>=rd$ci[estimator_type,1] && 0.02<=rd$ci[estimator_type,2]) {
         coverage_vector[counter] = 1
       }
@@ -343,8 +348,8 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
     # Iterate over all covariate settings
     for (covariates in covariate_settings) {
       if (isTRUE(ncol(covariates)>0)) {
-        # Store bandwidth which is taken for RDD without covariates
-        # By default RDHonest chooses this bandwidth MSE-optimal
+        # Store preliminary bandwidth which is taken for RDD without covariates.
+        # By default, RDHonest chooses this bandwidth MSE-optimal.
         h <- RDHonest::RDHonest(Y~X)$coefficients$bandwidth
         # Calculate the covariate adjustment according to Definition 7.2
         # in Section 7.1
@@ -364,12 +369,12 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
       
       # Store standard error
       standard_error_vector[counter] <- rd_ten_covs$coefficients$std.error
-      # Store estimation of average treatment effect
+      # Store estimation of the average treatment effect
       coef_vector[counter] <- rd_ten_covs$coefficients$estimate
       # Store length of the confidence interval
       ci_length_vector[counter] <- rd_ten_covs$coefficients$conf.high-rd_ten_covs$coefficients$conf.low
-      # If the true average treatment effect is inside the interval, raise the counter
-      # Later on, this helps to calculate the coverage
+      # If the true average treatment effect is inside the interval, raise the counter.
+      # Later on, this helps to calculate the coverage.
       if (0.02>=rd_ten_covs$coefficients$conf.low && 0.02<=rd_ten_covs$coefficients$conf.high) {
         coverage_vector[counter] = 1
       }
@@ -377,31 +382,36 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
     }
   }
   # Store the inference results in one matrix
-  results_of_run <- matrix(c(standard_error_vector, coef_vector, ci_length_vector, coverage_vector, number_of_covs_vector), 3, 5)
+  results_of_run <- matrix(c(standard_error_vector,
+                             coef_vector,
+                             ci_length_vector,
+                             coverage_vector,
+                             number_of_covs_vector), 3, 5)
   
   # Return the inference results as well as the statistic on selected covariates
   return(list(res = results_of_run, sel = selected_covs_vector))
 }
 
 #' This function executes a RD analysis on a given data set including covariates
-#' chosen by different selection procedures.
+#' chosen by different selection procedures
 #'
-#' @param X The sample value array of running variable of dimension n
-#' @param Y The sample value array of the outcome of dimension n
+#' @param X The running variable array of dimension n
+#' @param Y The outcome array of dimension n
 #' @param Z The covariate matrix of dimension nxp
 #' @param rdd_library The R package to use for the RD analysis. Possible values
 #'                    are "honest" for the package RDHonest and "robust" for
 #'                    the package RDRobust.
 #' @param estimator_type This parameter is just relevant when using RDRobust
-#'                       (otherwise it can be ignored). It indicates the estimator
-#'                       type used in the RD analysis. Possible values are:
+#'                       (otherwise it can be ignored). It indicates the
+#'                       estimator type used in the RD analysis.
+#'                       Possible values are:
 #'                       1 - for conventional estimator
 #'                       2 - for bias-corrected estimator
 #'                       3 - for robust estimator
 #'
-#' @return This functions returns the results of the RD analysis (estimation,
-#'         standard error, confidence intervals) as well as the results on the
-#'         selection of covariates
+#' @return The results of the RD analysis (estimation, standard error,
+#'         confidence intervals) as well as the results on the selection of
+#'         covariates
 #' @export
 perform_rdd_on_data <- function(X, Y, Z, rdd_library = "honest", estimator_type = "1") {
   
@@ -475,8 +485,8 @@ perform_rdd_on_data <- function(X, Y, Z, rdd_library = "honest", estimator_type 
     # Iterate over all covariate settings
     for (covariates in covariate_settings) {
       if (isTRUE(ncol(covariates)>0)) {
-        # Store bandwidth which is taken for RDD without covariates
-        # By default RDHonest chooses this bandwidth MSE-optimal
+        # Store preliminary bandwidth which is taken for RDD without covariates.
+        # By default RDHonest chooses this bandwidth MSE-optimal.
         h <- RDHonest::RDHonest(Y~X)$coefficients$bandwidth
         # Calculate the covariate adjustment according to Definition 7.2
         # in Section 7.1
@@ -515,7 +525,13 @@ perform_rdd_on_data <- function(X, Y, Z, rdd_library = "honest", estimator_type 
   }
   
   # Return results of RD analysis, the covariate selection as well as the number of selected covariates by (CCT)
-  return(list(res = matrix(c(number_of_covariates ,coef_vector, standard_error_vector, ci_lower, ci_upper, ci_length), 6, 6),
-              sel = list(cctsd = colnames(Z_calculated_threshold_and_deletion_simple), cctad = colnames(Z_calculated_threshold_and_deletion)),
+  return(list(res = matrix(c(number_of_covariates,
+                             coef_vector,
+                             standard_error_vector,
+                             ci_lower,
+                             ci_upper,
+                             ci_length), 6, 6),
+              sel = list(cctsd = colnames(Z_calculated_threshold_and_deletion_simple),
+                         cctad = colnames(Z_calculated_threshold_and_deletion)),
               number_sel_cov_threshold = ncol(Z_calculated_threshold)))
 }
