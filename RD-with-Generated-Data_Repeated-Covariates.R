@@ -20,8 +20,6 @@
 ###############################################################################
 # Set working directory as well as install and load packages / dependencies   #
 ###############################################################################
-setwd(getSrcDirectory(function(){})[1])
-
 list.of.packages <- c("mvtnorm", "rdrobust", "parallel", "utils")
 new.packages <- list.of.packages[!(list.of.packages %in%
                                      installed.packages()[,"Package"])]
@@ -35,6 +33,7 @@ if (!("RDHonest" %in% installed.packages())) {
   library("RDHonest")
 }
 
+setwd(getSrcDirectory(function(){})[1])
 source('R/functions.R')
 source('R/RDD_functions.R')
 
@@ -146,7 +145,7 @@ selection <- rowSums(selection_matrix, dims = 2)*100/number_of_montecarlo_replic
 # Assign column names to selection matrix
 colnames(selection) <- c("(CCT)", "(CCTAD)", "(CCTSD)")
 
-# Print results on covariate selection
+# Print results on covariate selection for the procedures (CCT), (CCTAD) and (CCTSD)
 selection
 
 # Print inference results

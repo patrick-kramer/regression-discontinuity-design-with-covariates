@@ -13,7 +13,7 @@
 #'                       2 - for bias-corrected estimator
 #'                       3 - for robust estimator
 #'
-#' @return This functions returns the results of the RD analysis (bias, standard
+#' @return This functions returns the results of the RD analysis (estimation, bias, standard
 #'         deviation, standard error, confidence intervals, coverage) as well as
 #'         the results on the selection of covariates
 #' @export
@@ -64,12 +64,12 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
   Z_01 <- matrix_Z[,compare_correlation(matrix_Z, Y, 0.1)]
   # Procedure: Correlation threshold of 0.2
   Z_02 <- matrix_Z[,compare_correlation(matrix_Z, Y, 0.2)]
-  # Procedure: Calculated correlation threshold (Section 8.3.1 of the thesis)
+  # Procedure (CCT): Calculated correlation threshold (Section 8.3.1 of the thesis)
   selected_indices_threshold_method <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, sample_size))
   Z_calculated_threshold <- matrix_Z[, selected_indices_threshold_method]
-  # Procedure: Calculated correlation threshold with simple deletion (Section 8.3.2 of the thesis)
+  # Procedure (CCTSD): Calculated correlation threshold with simple deletion (Section 8.3.2 of the thesis)
   Z_calculated_threshold_and_deletion_simple <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = TRUE)
-  # Procedure: Calculated correlation threshold with advanced deletion (Section 8.3.3 of the thesis)
+  # Procedure (CCTAD): Calculated correlation threshold with advanced deletion (Section 8.3.3 of the thesis)
   Z_calculated_threshold_and_deletion <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = FALSE)
   
   # Raise variable which counts how often a covariate was selected by the respective procedures
@@ -214,7 +214,7 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
 #'                       2 - for bias-corrected estimator
 #'                       3 - for robust estimator
 #'
-#' @return This functions returns the results of the RD analysis (bias, standard
+#' @return This functions returns the results of the RD analysis (estimation, bias, standard
 #'         deviation, standard error, confidence intervals, coverage) as well as
 #'         the results on the selection of covariates
 #' @export
@@ -264,12 +264,12 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
   colnames(matrix_Z) <- c(1:200)
   
   # Select covariates according to different selection procedures
-  # Procedure: Calculated correlation threshold (Section 8.3.1 of the thesis)
+  # Procedure (CCT): Calculated correlation threshold (Section 8.3.1 of the thesis)
   selected_indices_threshold_method <- compare_correlation(matrix_Z, Y, calculate_correlation_thresholds(matrix_Z, Y, sample_size))
   Z_calculated_threshold <- matrix_Z[, selected_indices_threshold_method]
-  # Procedure: Calculated correlation threshold with simple deletion (Section 8.3.2 of the thesis)
+  # Procedure (CCTSD): Calculated correlation threshold with simple deletion (Section 8.3.2 of the thesis)
   Z_calculated_threshold_and_deletion_simple <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = TRUE)
-  # Procedure: Calculated correlation threshold with advanced deletion (Section 8.3.3 of the thesis)
+  # Procedure (CCTAD): Calculated correlation threshold with advanced deletion (Section 8.3.3 of the thesis)
   Z_calculated_threshold_and_deletion <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = FALSE)
   
   # Raise variable which counts how often a covariate was selected by the respective procedures
@@ -383,3 +383,139 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
   return(list(res = results_of_run, sel = selected_covs_vector))
 }
 
+#' This function executes a RD analysis on a given data set including covariates
+#' chosen by different selection procedures.
+#'
+#' @param X The sample value array of running variable of dimension n
+#' @param Y The sample value array of the outcome of dimension n
+#' @param Z The covariate matrix of dimension nxp
+#' @param rdd_library The R package to use for the RD analysis. Possible values
+#'                    are "honest" for the package RDHonest and "robust" for
+#'                    the package RDRobust.
+#' @param estimator_type This parameter is just relevant when using RDRobust
+#'                       (otherwise it can be ignored). It indicates the estimator
+#'                       type used in the RD analysis. Possible values are:
+#'                       1 - for conventional estimator
+#'                       2 - for bias-corrected estimator
+#'                       3 - for robust estimator
+#'
+#' @return This functions returns the results of the RD analysis (estimation,
+#'         standard error, confidence intervals) as well as the results on the
+#'         selection of covariates
+#' @export
+perform_rdd_on_data <- function(X, Y, Z, rdd_library = "honest", estimator_type = "1") {
+  
+  # Define treatment variable
+  T = 0+(X >= 0)
+  
+  # Store the sample size
+  n <- length(Y)
+  
+  # Initialize vectors for storing results
+  coef_vector <- array(NA, c(6))
+  standard_error_vector <- array(NA, c(6))
+  ci_lower <- array(NA, c(6))
+  ci_upper <- array(NA, c(6))
+  ci_length <- array(NA, c(6))
+  number_of_covariates <- array(NA, c(6))
+  
+  # Select covariates according to different selection procedures
+  # Procedure: Correlation threshold of 0.2
+  Z_02 <- Z[,compare_correlation(Z, Y, 0.2)]
+  # Procedure (CCT): Calculated correlation threshold (Section 8.3.1 of the thesis)
+  Z_calculated_threshold <- Z[,compare_correlation(Z, Y, calculate_correlation_thresholds(Z, Y, length(indices)))]
+  # Procedure (CCTSD): Calculated correlation threshold with simple deletion (Section 8.3.2 of the thesis)
+  Z_calculated_threshold_and_deletion_simple <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, length(indices), simple_deletion = TRUE))
+  # Procedure (CCTAD): Calculated correlation threshold with advanced deletion (Section 8.3.3 of the thesis)
+  Z_calculated_threshold_and_deletion <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, length(indices), simple_deletion = FALSE))
+  # Procedure: Fixed set of covariates (extended set)
+  Z_extended <- remove_covs_with_high_correlation(Z[,1:60], 3)
+
+  # Store the different settings of covariate selections in a list
+  covariate_settings <- list(Z_calculated_threshold_and_deletion,
+                             Z_calculated_threshold_and_deletion_simple,
+                             Z_02,
+                             NA,
+                             Z[,1:38],
+                             Z_extended)
+  
+  if (rdd_library == "robust") {
+    ### This section performs RDD with the package RDRobust ###
+    
+    counter <- 1
+    # Iterate over all covariate settings
+    for (covariates in covariate_settings) {
+      if (isTRUE(ncol(covariates)>0)) {
+        # If covariates were selected, perform RDD with covariates
+        rd <- rdrobust(Y, X, covs = covariates)
+        # Store number of selected covariates
+        number_of_covariates[counter] = dim(covariates)[2]
+      } else {
+        # If there are no selected covariates, perform RDD without covariates
+        rd <- rdrobust(Y, X)
+        # Store number of selected covariates
+        number_of_covariates[counter] = 0
+      }
+      # Store the standard error
+      standard_error_vector[counter] <- rd$se[estimator_type]
+      # Store the estimated average treatment effect
+      coef_vector[counter] <- rd$coef[estimator_type]
+      # Store the lower bound of the confidence interval
+      ci_lower[counter] <- rd$ci[estimator_type,1]
+      # Store the upper bound of the confidence interval
+      ci_upper[counter] <- rd$ci[estimator_type,2]
+      # Store the length of the confidence interval
+      ci_length[counter] <- ci_upper[counter]-ci_lower[counter]
+      counter <- counter + 1
+    }
+  } else if (rdd_library == "honest") {
+    ### This section performs RDD with the package RDHonest ###
+    
+    counter <- 1
+    # Iterate over all covariate settings
+    for (covariates in covariate_settings) {
+      if (isTRUE(ncol(covariates)>0)) {
+        # Store bandwidth which is taken for RDD without covariates
+        # By default RDHonest chooses this bandwidth MSE-optimal
+        h <- RDHonest::RDHonest(Y~X)$coefficients$bandwidth
+        # Calculate the covariate adjustment according to Definition 7.2
+        # in Section 7.1
+        kernel_weights <- triangular(X/h)/h
+        cov_lm <- lm(covariates~1+X+T+X*T, weights = kernel_weights)
+        v <- cov_lm$residuals
+        sigma_Z <- t(v)%*%(v*kernel_weights)/n
+        sigma_ZY <- colSums(as.matrix(v*as.vector(kernel_weights*Y)))/n
+        gamma_n <- solve(sigma_Z)%*%sigma_ZY
+        Ytilde <- Y-covariates%*%gamma_n
+        
+        # Store number of selected covariates
+        number_of_covariates[counter] = dim(as.matrix(covariates))[2]
+      } else {
+        # If there are no selected covariates, we do not need to adjust the outcome
+        Ytilde = Y
+        
+        # Store number of selected covariates
+        number_of_covariates[counter] = 0
+      }
+      # Perform the RD analysis
+      rd <- RDHonest::RDHonest(Ytilde~X)
+      
+      # Store the standard error
+      standard_error_vector[counter] <- rd$coefficients$std.error
+      # Store the estimated average treatment effect
+      coef_vector[counter] <- rd$coefficients$estimate
+      # Store the lower bound of the confidence interval
+      ci_lower[counter] <- rd$coefficients$conf.low
+      # Store the upper bound of the confidence interval
+      ci_upper[counter] <- rd$coefficients$conf.high
+      # Store the length of the confidence interval
+      ci_length[counter] <- ci_upper[counter]-ci_lower[counter]
+      counter = counter + 1
+    }
+  }
+  
+  # Return results of RD analysis, the covariate selection as well as the number of selected covariates by (CCT)
+  return(list(res = matrix(c(number_of_covariates ,coef_vector, standard_error_vector, ci_lower, ci_upper, ci_length), 6, 6),
+              sel = list(cctsd = colnames(Z_calculated_threshold_and_deletion_simple), cctad = colnames(Z_calculated_threshold_and_deletion)),
+              number_sel_cov_threshold = ncol(Z_calculated_threshold)))
+}

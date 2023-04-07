@@ -1,105 +1,86 @@
-# Load packages
-library('mvtnorm')
-library('rdrobust')
-library('parallel')
-library('haven')
-setwd(getSrcDirectory(function(){})[1])
-source('R/functions.R')
+###############################################################################
+# This file generates the result of Section 9.4.                              #
+# The respective necessary settings are commented below.                      #
+###############################################################################
+# In order that this file works, the following has to be satisfied:           #
+#  - R must be installed                                                      #
+#  - The working directory must be set to the folder which contains this file.#
+#    This just has to be done manually in case the below command              #
+#        setwd(getSrcDirectory(function(){})[1])                              #
+#    does not work.                                                           #
+#  - The directory where this file is stored must contain a folder 'R'        #
+#    which contains the files 'functions.R' and 'RDD_functions.R'             #
+#  - The directory where this file is stored must contain a folder 'data'     #
+#    which contains the file 'Card_analysis_dataset.dta'                      #
+#  - The packages mvtnorm, rdrobust, RDHonest, parallel, haven and utils need #
+#    to be installed.                                                         #
+#    Those only need to be installed manually in case the below installation  #
+#    does not work properly due to incompatibilities.                         #
+###############################################################################
 
-perform_rdd <- function(X, Y, Z) {
-  
-  # Define treatment variable
-  T = 0+(X >= 0)
-  
-  # Store number of data entries
-  n <- length(Y)
-  
-  # Initialize vectors for storing results
-  coef_vector <- array(NA, c(number_of_examinations))
-  standard_error_vector <- array(NA, c(number_of_examinations))
-  ci_lower <- array(NA, c(number_of_examinations))
-  ci_upper <- array(NA, c(number_of_examinations))
-  ci_length <- array(NA, c(number_of_examinations))
-  number_of_covariates <- array(NA, c(number_of_examinations))
-  
-  # Select covariates
-  Z_02 <- Z[,compare_correlation(Z, Y, 0.2)]
-  Z_calculated_threshold <- Z[,compare_correlation(Z, Y, calculate_correlation_thresholds(Z, Y, length(indices)))]
-  Z_calculated_threshold_and_deletion_simple <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, length(indices), simple_deletion = TRUE))
-  Z_calculated_threshold_and_deletion <- as.matrix(remove_covs_calculated_threshold(Z_calculated_threshold, Y, length(indices), simple_deletion = FALSE))
-  Z_extended <- remove_covs_with_high_correlation(Z[,1:60], 3)
-  
-  cat("Selected covariates by (CCT): ", ncol(Z_calculated_threshold), "\n")
-  
-  covariate_settings <- list(Z_calculated_threshold_and_deletion, Z_calculated_threshold_and_deletion_simple, Z_02, NA, Z[,1:38], Z_extended)
-  
-  gc()
-  
-  if (rdd_library == "robust") {
-    counter <- 1
-    for (covariates in covariate_settings) {
-      if (isTRUE(ncol(covariates)>0)) {
-        rd <- rdrobust(Y, X, covs = covariates)
-        number_of_covariates[counter] = dim(covariates)[2]
-      } else {
-        rd <- rdrobust(Y, X)
-        number_of_covariates[counter] = 0
-      }
-      standard_error_vector[counter] <- rd$se[estimator_type]
-      coef_vector[counter] <- rd$coef[estimator_type]
-      ci_lower[counter] <- rd$ci[estimator_type,1]
-      ci_upper[counter] <- rd$ci[estimator_type,2]
-      ci_length[counter] <- ci_upper[counter]-ci_lower[counter]
-      counter <- counter + 1
-    }
-  } else if (rdd_library == "honest") {
-    counter <- 1
-    for (covariates in covariate_settings) {
-      if (isTRUE(ncol(covariates)>0)) {
-        h <- RDHonest::RDHonest(Y~X)$coefficients$bandwidth
-        kernel_weights <- triangular(X/h)/h
-        cov_lm <- lm(covariates~1+X+T+X*T, weights = kernel_weights)
-        v <- cov_lm$residuals
-        sigma_Z <- t(v)%*%(v*kernel_weights)/n
-        sigma_ZY <- colSums(as.matrix(v*as.vector(kernel_weights*Y)))/n
-        gamma_n <- solve(sigma_Z)%*%sigma_ZY
-        Ytilde <- Y-covariates%*%gamma_n
-        number_of_covariates[counter] = dim(as.matrix(covariates))[2]
-      } else {
-        Ytilde = Y
-        number_of_covariates[counter] = 0
-      }
-      rd <- RDHonest::RDHonest(Ytilde~X)
-      
-      standard_error_vector[counter] <- rd$coefficients$std.error
-      coef_vector[counter] <- rd$coefficients$estimate
-      ci_lower[counter] <- rd$coefficients$conf.low
-      ci_upper[counter] <- rd$coefficients$conf.high
-      ci_length[counter] <- ci_upper[counter]-ci_lower[counter]
-      counter = counter + 1
-    }
+
+###############################################################################
+# Set working directory as well as install and load packages / dependencies   #
+###############################################################################
+list.of.packages <- c("mvtnorm", "rdrobust", "parallel", "utils", "haven")
+new.packages <- list.of.packages[!(list.of.packages %in%
+                                     installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+lapply(list.of.packages, library, character.only=TRUE)
+if (!("RDHonest" %in% installed.packages())) {
+  if (!requireNamespace("remotes")) {
+    install.packages("remotes")
   }
-  
-  return(list(res = matrix(c(number_of_covariates ,coef_vector, standard_error_vector, ci_lower, ci_upper, ci_length), number_of_examinations, 6),
-              sel = list(cctsd = colnames(Z_calculated_threshold_and_deletion_simple), cctad = colnames(Z_calculated_threshold_and_deletion))))
+  remotes::install_github("kolesarm/RDHonest")
+  library("RDHonest")
 }
 
-start_time <- Sys.time()
+setwd(getSrcDirectory(function(){})[1])
+source('R/functions.R')
+source('R/RDD_functions.R')
+
+
+###############################################################################
+# Settings for simulation                                                     #
+###############################################################################
+
+# Configure which library to use for RD analysis
+#   honest - for RDHonest
+#   robust - for RDRobust
+# Setting for Section 9.4: "honest"
+rdd_library <- "honest"
+
+# Configure the type of estimator. This is only relevant if RDRobust is used.
+#   1 - Conventional
+#   2 - Bias-Corrected
+#   3 - Robust
+# Setting for Section 9.4: RDRobust was not used
+rd_estimator_type <- 1
+
+# Limits the loaded data set to a certain amount of randomly chosen entries.
+# This was necessary due to limited RAM capacities.
+# Setting for Section 9.4: 100000
+data_size_limit <- 10000
+
+
+###############################################################################
+# Load and prepare the data set                                               #
+###############################################################################
 
 if (!exists('input_data')) {
   # Load Data
   input_data <- read_dta("data/Card_analysis_dataset.dta")
   
-  # Restrict to sub-sample of workers with a positive unemployment spell
+  # Restrict to sample of workers with a positive unemployment spell
   data <- input_data[input_data$dunempl5>0,]
   attach(data)
 }
 
-# Assign to those people who had no job before, a duration of the previous job of zero
+# In case a person did not have a job before, the duration of the previous job is set to zero
 ind <- which(last_job==0)
 last_duration[ind] <- 0
 
-# Basic Model
+# Load basic covariates
 Xpaper_basis=cbind(female,married,austrian,bluecollar,age, age2,lwage,lwage2,
                    endmo_dum2,endmo_dum3,endmo_dum4, endmo_dum5,endmo_dum6,endmo_dum7,
                    endmo_dum8,endmo_dum9,endmo_dum10, endmo_dum11,endmo_dum12,
@@ -107,39 +88,29 @@ Xpaper_basis=cbind(female,married,austrian,bluecollar,age, age2,lwage,lwage2,
                    endy_dum10,endy_dum11, endy_dum12,endy_dum13,endy_dum14,endy_dum15, 
                    endy_dum16, endy_dum17,endy_dum18,endy_dum19, endy_dum20,endy_dum21)
 
-# Full Model
+# Load additional covariates (for extended set)
 Xpaper_extended <- cbind(Xpaper_basis,firms,experience,exper2,
                          last_job,last_bluec,last_posnonedur,
                          last_recall,last_noneduration,last_breaks,high_ed,
                          iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale,
                          reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6)
 
-# Outcome
+# Define outcome
 Y <- wage_change
 
-# Running Variable
+# Define running variable
 X <- dten1
 
 # Indices of all observations with no entry of NA
 indices <- which(apply(!is.na(cbind(X, Y, Xpaper_extended)), 1, all))
-indices <- sample(indices, 10000)
+# Limit the data set to a certain number of data entries
+indices <- sample(indices, data_size_limit)
 
+# Remove variables that are not needed anymore to free RAM
 rm("data", "input_data")
 gc()
 
-# # Calculate interaction terms for basic and extended covariates
-# Z_interaction <- interaction_terms(Xpaper_basis[indices,])
-# Z_interaction <- Z_interaction[, colSums(Z_interaction != 0) > 0]
-# Z_interaction_df <- as.data.frame(Z_interaction)
-# Z_interaction_df <- Z_interaction_df[!duplicated(as.list(Z_interaction_df))]
-# Z_interaction <- as.matrix(Z_interaction_df)
-# 
-# # Calculate fourier bases for basic and extended covariates
-# Z_fourier <- fourier_basis(Xpaper_extended[indices, c("lwage", "lwage2")], 5)
-# 
-# # Join the interaction terms and fourier bases
-# Z <- cbind(Xpaper_extended[indices,], Z_interaction, Z_fourier)
-
+# Compute non-trivial interaction and cross-interaction terms of the covariates
 Z_interaction <- cbind(interaction_terms(cbind(age,age2,lwage,lwage2,experience,exper2,last_noneduration,last_breaks,
                                          firms,female,married,austrian,bluecollar,last_job,last_bluec,last_posnonedur,last_recall,high_ed))[indices,],
                        cross_interactions(cbind(age,age2,lwage,lwage2,experience,exper2,last_noneduration,last_breaks,
@@ -162,49 +133,40 @@ Z_interaction <- cbind(interaction_terms(cbind(age,age2,lwage,lwage2,experience,
                                                                                                     reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6),ident="endy")[indices,],
                         cross_interactions(cbind(iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale),cbind(reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6),ident="sector")[indices,])
 
+# Select all covariates that are not equal to the zero vector
 Z_interaction <- Z_interaction[, colSums(Z_interaction != 0) > 0]
 
+# Compute trignometric transformations on covariates up to order 5
 Z_fourier <- fourier_basis(cbind(lwage,lwage2),5)[indices,]
 
-#Z_firms <- cbind(firms2[indices],firms3[indices],firms4[indices], firms5[indices],firms6[indices])
-#colnames(Z_firms) <- c("firms2", "firms3", "firms4", "firms5", "firms6")
-
-# Create High-Dimensional covariate set
+# Combine all the covariates to one matrix
 Z <- cbind(Xpaper_extended[indices,], Z_fourier, Z_interaction)
 
+# Remove variables that are not needed anymore to free RAM
 rm('Xpaper_basis', "Xpaper_extended")
 gc()
 
-# Number of examinations
-number_of_examinations <- 6
 
-# Library to use for RDD
-# robust - RDRobust
-# honest - RDHonest
-rdd_library <- "honest"
+###############################################################################
+# Perform RD analysis as well as arrange and print results                    #
+###############################################################################
 
-# Type of estimator (only relevant for RDRobust)
-# 1 - Conventional
-# 2 - Bias-Corrected
-# 3 - Robust
-estimator_type <- 1
+output <- perform_rdd_on_data(X[indices], Y[indices], Z, rdd_library = rdd_library, estimator_type = rd_estimator_type)
 
-output <- perform_rdd(X[indices], Y[indices], Z)
-
-# Results
+# Store results
 results <- output[['res']]
-dimnames(results) <- list(list("Th+Del", "Th+Del Simple", "Cor.>0.2", "0 Covs", "Basic Covs", "Extended Covs"), list("#Covs", "Estimator", "Avg. SE", "CI Lower", "CI Upper", "CI Length"))
+dimnames(results) <- list(list("(CCTAD)", "(CCTSD)", "Cor.>0.2", "0 Covs", "Basic Covs", "Extended Covs"), list("#Covs", "Estimator", "Avg. SE", "CI Lower", "CI Upper", "CI Length"))
+# Add additional row for the selection procedure (CCT) and store its number of selected covariates
+results_with_cct <- rbind(
+  matrix(c(output[['number_sel_cov_threshold']], NA, NA, NA, NA, NA), nrow=1, ncol=6, dimnames = list(c("(CCT)"), c())),
+  results
+)
 
-# Print results
-results
-
-# Selection results
+# Store covariate selection results for the procedures (CCTSD) and (CCTAD)
 selection <- output[['sel']]
 
-# Print selection
+# Print selection results
 selection
 
-end_time <- Sys.time()
-ellapsed_time <- end_time - start_time
-cat("Ellapsed time:", ellapsed_time)
-
+# Print inference results
+results_with_cct
