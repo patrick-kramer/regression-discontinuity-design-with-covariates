@@ -1,6 +1,6 @@
 ###############################################################################
 # This file generates the result of Section 9.3.                              #
-# The respective necessary settings are commented below.                      #
+# The necessary settings are commented below.                                 #
 ###############################################################################
 # In order that this file works, the following has to be satisfied:           #
 #  - R must be installed                                                      #
@@ -12,7 +12,7 @@
 #    which contains the files 'functions.R' and 'RDD_functions.R'             #
 #  - The packages mvtnorm, rdrobust, RDHonest, parallel and utils need to be  #
 #    installed.                                                               #
-#    Those only need to be installed manually in case the below installation  #
+#    They only need to be installed manually in case the below installation   #
 #    does not work properly due to incompatibilities.                         #
 ###############################################################################
 
@@ -69,7 +69,7 @@ rdrobust_estimator_type <- 1
 ###############################################################################
 
 # Parallel execution of the Monte Carlo replications
-# A different functions needs to be used dependent on the operating system.
+# A different functions needs to be used dependent on the operating system
 if (Sys.info()['sysname'] == "Windows") {
   # Use number of available kernels except for one
   cluster <- makeCluster(detectCores()-1)
@@ -105,9 +105,6 @@ selection_list <- lapply(results_list_of_matrices, function(x) { x <- x[[2]] })
 results_matrix <- simplify2array(results_list)
 selection_matrix <- simplify2array(selection_list)
 
-# Variable which stores the number of different settings of covariate selections
-number_of_examinations <- 3
-
 # Initialize vectors for result storage
 number_of_covs <- c()
 mean_of_estimator <- c()
@@ -116,11 +113,13 @@ standard_deviation <- c()
 standard_error <- c()
 ci_length <- c()
 coverage <- c()
-results <- matrix(NA, number_of_examinations, 6, dimnames = list(list("(CCT)", "(CCTAD)", "(CCTSD)"), list("#Covs", "Bias", "SD", "Avg. SE", "CI Length", "Coverage")))
+results <- matrix(NA, 3, 6, dimnames = list(list("(CCT)", "(CCTAD)", "(CCTSD)"),
+                                            list("#Covs", "Bias", "SD", "Avg. SE",
+                                                 "CI Length", "Coverage")))
 
 # Store results in a matrix
-# Iterate over each of the covariate settings examined
-for (l in 1:number_of_examinations) {
+# Iterate over the results of each covariate setting
+for (l in 1:3) {
   # Average the number of selected covariates over all executions
   number_of_covs <- append(number_of_covs, mean(results_matrix[l,5,]))
   # Average the estimation of the average treatment effect over all executions
@@ -137,10 +136,12 @@ for (l in 1:number_of_examinations) {
   coverage <- append(coverage, mean(results_matrix[l,4,])*100)
   
   # Store the results in a matrix structure
-  results[l,] <- c(number_of_covs[l], bias[l], standard_deviation[l], standard_error[l], ci_length[l], coverage[l])
+  results[l,] <- c(number_of_covs[l], bias[l], standard_deviation[l],
+                   standard_error[l], ci_length[l], coverage[l])
 }
 
-# Calculate percentages, with which each covariate got chosen by the respective selection procedures
+# Calculate percentages with which each covariate got chosen by the respective
+# selection procedures (CCT), (CCTAD) and (CCTSD)
 selection <- rowSums(selection_matrix, dims = 2)*100/number_of_montecarlo_replications
 # Assign column names to selection matrix
 colnames(selection) <- c("(CCT)", "(CCTAD)", "(CCTSD)")

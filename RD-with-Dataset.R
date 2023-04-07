@@ -1,6 +1,6 @@
 ###############################################################################
 # This file generates the result of Section 9.4.                              #
-# The respective necessary settings are commented below.                      #
+# The necessary settings are commented below.                                 #
 ###############################################################################
 # In order that this file works, the following has to be satisfied:           #
 #  - R must be installed                                                      #
@@ -14,7 +14,7 @@
 #    which contains the file 'Card_analysis_dataset.dta'                      #
 #  - The packages mvtnorm, rdrobust, RDHonest, parallel, haven and utils need #
 #    to be installed.                                                         #
-#    Those only need to be installed manually in case the below installation  #
+#    They only need to be installed manually in case the below installation   #
 #    does not work properly due to incompatibilities.                         #
 ###############################################################################
 
@@ -55,7 +55,7 @@ rdd_library <- "honest"
 #   2 - Bias-Corrected
 #   3 - Robust
 # Setting for Section 9.4: RDRobust was not used
-rd_estimator_type <- 1
+rdrobust_estimator_type <- 1
 
 # Limits the loaded data set to a certain amount of randomly chosen entries.
 # This was necessary due to limited RAM capacities.
@@ -76,7 +76,7 @@ if (!exists('input_data')) {
   attach(data)
 }
 
-# In case a person did not have a job before, the duration of the previous job is set to zero
+# In case a person did not have a job before, set the duration of the previous job to zero
 ind <- which(last_job==0)
 last_duration[ind] <- 0
 
@@ -92,8 +92,8 @@ Xpaper_basis=cbind(female,married,austrian,bluecollar,age, age2,lwage,lwage2,
 Xpaper_extended <- cbind(Xpaper_basis,firms,experience,exper2,
                          last_job,last_bluec,last_posnonedur,
                          last_recall,last_noneduration,last_breaks,high_ed,
-                         iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale,
-                         reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6)
+                         iagrmining,icarsales,ihotel,imanufact,iservice,itransport,
+                         iwholesale,reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6)
 
 # Define outcome
 Y <- wage_change
@@ -101,7 +101,7 @@ Y <- wage_change
 # Define running variable
 X <- dten1
 
-# Indices of all observations with no entry of NA
+# Store indices of all observations with no entry of NA
 indices <- which(apply(!is.na(cbind(X, Y, Xpaper_extended)), 1, all))
 # Limit the data set to a certain number of data entries
 indices <- sample(indices, data_size_limit)
@@ -133,10 +133,10 @@ Z_interaction <- cbind(interaction_terms(cbind(age,age2,lwage,lwage2,experience,
                                                                                                     reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6),ident="endy")[indices,],
                         cross_interactions(cbind(iagrmining,icarsales,ihotel,imanufact,iservice,itransport,iwholesale),cbind(reg_dum2, reg_dum3, reg_dum4, reg_dum5,reg_dum6),ident="sector")[indices,])
 
-# Select all covariates that are not equal to the zero vector
+# Select all covariates that are not equal to zero vector
 Z_interaction <- Z_interaction[, colSums(Z_interaction != 0) > 0]
 
-# Compute trignometric transformations on covariates up to order 5
+# Compute trigonometric transformations on covariates up to order 5
 Z_fourier <- fourier_basis(cbind(lwage,lwage2),5)[indices,]
 
 # Combine all the covariates to one matrix
@@ -151,18 +151,24 @@ gc()
 # Perform RD analysis as well as arrange and print results                    #
 ###############################################################################
 
-output <- perform_rdd_on_data(X[indices], Y[indices], Z, rdd_library = rdd_library, estimator_type = rd_estimator_type)
+output <- perform_rdd_on_data(X[indices], Y[indices], Z, rdd_library = rdd_library,
+                              estimator_type = rdrobust_estimator_type)
 
 # Store results
 results <- output[['res']]
-dimnames(results) <- list(list("(CCTAD)", "(CCTSD)", "Cor.>0.2", "0 Covs", "Basic Covs", "Extended Covs"), list("#Covs", "Estimator", "Avg. SE", "CI Lower", "CI Upper", "CI Length"))
-# Add additional row for the selection procedure (CCT) and store its number of selected covariates
+dimnames(results) <- list(list("(CCTAD)", "(CCTSD)", "Cor.>0.2", "0 Covs", "Basic Covs",
+                               "Extended Covs"),
+                          list("#Covs", "Estimator", "Avg. SE", "CI Lower", "CI Upper",
+                               "CI Length"))
+# Add additional row for the selection procedure (CCT) and store its number of
+# selected covariates
 results_with_cct <- rbind(
-  matrix(c(output[['number_sel_cov_threshold']], NA, NA, NA, NA, NA), nrow=1, ncol=6, dimnames = list(c("(CCT)"), c())),
+  matrix(c(output[['number_sel_cov_threshold']], NA, NA, NA, NA, NA), nrow=1, ncol=6,
+         dimnames = list(c("(CCT)"), c())),
   results
 )
 
-# Store covariate selection results for the procedures (CCTSD) and (CCTAD)
+# Store covariate selection results of the procedures (CCTSD) and (CCTAD)
 selection <- output[['sel']]
 
 # Print selection results
