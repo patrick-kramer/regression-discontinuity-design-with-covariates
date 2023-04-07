@@ -17,6 +17,3 @@ Sample correlation coefficient of A and B
 \description{
 Calculate the sample correlation coefficient of two vectors
 }
-\examples{
-calculate_correlation(c(1,2,3),c(3,2,1))
-}

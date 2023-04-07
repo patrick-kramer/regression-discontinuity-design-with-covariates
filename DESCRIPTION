@@ -1,5 +1,5 @@
-Package: RDDSimulation
+Package: ThesisSourceCode
 Type: Package
-Title: Simulation of different RDD Scenarios
-Version: 0.0.1.0
+Title: Regression Discontinuity Design Simulation of Different Covariate Selection Procedures
+Version: 1.0
 RoxygenNote: 7.2.3

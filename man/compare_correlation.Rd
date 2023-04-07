@@ -2,8 +2,8 @@
 % Please edit documentation in R/functions.R
 \name{compare_correlation}
 \alias{compare_correlation}
-\title{Calculate sample correlation coefficient of each covariate with the outcome
-and check whether it is greater or equal a certain threshold}
+\title{Calculate the sample correlation coefficient of each covariate with the
+outcome and check whether it is greater or equal a threshold}
 \usage{
 compare_correlation(Z, Y, threshold)
 }
@@ -15,10 +15,10 @@ compare_correlation(Z, Y, threshold)
 \item{threshold}{The threshold vector of dimension n}
 }
 \value{
-Returns indices of covariates which have a correlation to the outcome
-        greater or equal to the according threshold
+Returns indices of covariates which have a sample correlation to the
+        outcome greater or equal the according threshold
 }
 \description{
-Calculate sample correlation coefficient of each covariate with the outcome
-and check whether it is greater or equal a certain threshold
+Calculate the sample correlation coefficient of each covariate with the
+outcome and check whether it is greater or equal a threshold
 }

@@ -51,8 +51,8 @@ calculate_correlation_thresholds <- function(Z, Y, data_size) {
   return(threshold_vector)
 }
 
-#' Calculate sample correlation coefficient of each covariate with the outcome
-#' and check whether it is greater or equal a threshold
+#' Calculate the sample correlation coefficient of each covariate with the
+#' outcome and check whether it is greater or equal a threshold
 #'
 #' @param Z The covariates matrix of dimension nxp
 #' @param Y The outcome vector of dimension n
@@ -277,7 +277,7 @@ fourier_basis <- function(Z, order) {
 #' Removes a certain amount of covariates with the highest sample correlation
 #' to another covariate. This function is just used to ensure invertibility in
 #' some cases as described in the paragraph "Numerical invertibility" of
-#' Section 9.1.
+#' Section 9.1
 #'
 #' @param Z The covariate matrix of dimension nxp
 #' @param number The number of covariates to be deleted

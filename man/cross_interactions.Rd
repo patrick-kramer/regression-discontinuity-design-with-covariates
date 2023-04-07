@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{cross_interactions}
 \alias{cross_interactions}
-\title{Compute cross interaction terms of two sets of covariates}
+\title{Compute cross-interaction terms of two sets of covariates}
 \usage{
 cross_interactions(Z1, Z2, ident = "")
 }
@@ -14,8 +14,8 @@ cross_interactions(Z1, Z2, ident = "")
 \item{ident}{String for naming the resulting columns}
 }
 \value{
-All cross interaction terms structured as a matrix
+All cross-interaction terms structured as a matrix
 }
 \description{
-Compute cross interaction terms of two sets of covariates
+Compute cross-interaction terms of two sets of covariates
 }

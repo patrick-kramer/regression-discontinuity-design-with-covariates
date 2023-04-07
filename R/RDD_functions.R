@@ -1,5 +1,6 @@
-#' This function executes a RD analysis on generated data including covariates
-#' chosen by different selection procedures.
+#' Execute a RD analysis on generated data including covariates chosen by
+#' different selection procedures (used to generate results of Section 9.2.1
+#' and 9.2.2)
 #'
 #' @param run The number of execution when executed multiple times in parallel
 #' @param sample_size The sample size
@@ -10,8 +11,8 @@
 #'                       (otherwise it can be ignored). It indicates the
 #'                       estimator type used in the RD analysis.
 #'                       Possible values are:
-#'                       1 - for conventional estimator
-#'                       2 - for bias-corrected estimator
+#'                       1 - for conventional estimator,
+#'                       2 - for bias-corrected estimator,
 #'                       3 - for robust estimator
 #'
 #' @return The results of the RD analysis (estimation, bias, standard deviation,
@@ -201,9 +202,9 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
   return(list(res = results_of_run, sel = selected_covs_vector))
 }
 
-#' This function executes a RD analysis on generated data including
-#' covariates chosen from a set of redundant covariates by different selection
-#' procedures
+#' Execute a RD analysis on generated data including covariates chosen from a
+#' set of redundant covariates by different selection procedures (used to
+#' generate results of Section 9.3)
 #'
 #' @param run The number of execution when executed multiple times in parallel
 #' @param sample_size The sample size
@@ -214,8 +215,8 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
 #'                       (otherwise it can be ignored). It indicates the
 #'                       estimator type used in the RD analysis.
 #'                       Possible values are:
-#'                       1 - for conventional estimator
-#'                       2 - for bias-corrected estimator
+#'                       1 - for conventional estimator,
+#'                       2 - for bias-corrected estimator,
 #'                       3 - for robust estimator
 #'
 #' @return The results of the RD analysis (estimation, bias, standard deviation,
@@ -392,8 +393,8 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
   return(list(res = results_of_run, sel = selected_covs_vector))
 }
 
-#' This function executes a RD analysis on a given data set including covariates
-#' chosen by different selection procedures
+#' Execute a RD analysis on a given data set including covariates chosen by
+#' different selection procedures (used to generate results of Section 9.4)
 #'
 #' @param X The running variable array of dimension n
 #' @param Y The outcome array of dimension n
@@ -405,8 +406,8 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
 #'                       (otherwise it can be ignored). It indicates the
 #'                       estimator type used in the RD analysis.
 #'                       Possible values are:
-#'                       1 - for conventional estimator
-#'                       2 - for bias-corrected estimator
+#'                       1 - for conventional estimator,
+#'                       2 - for bias-corrected estimator,
 #'                       3 - for robust estimator
 #'
 #' @return The results of the RD analysis (estimation, standard error,

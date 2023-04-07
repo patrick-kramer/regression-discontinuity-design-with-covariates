@@ -19,7 +19,7 @@ procedure of Section 8.3.1 of dimension nxs}
 8.3.2), otherwise advanced deletion (Section 8.3.3)}
 }
 \value{
-The remaining set of covariates after the deletion
+The remaining covariates after deletion
 }
 \description{
 Remove selected covariates according to the procedure described in Section

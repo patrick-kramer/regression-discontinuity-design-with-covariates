@@ -2,9 +2,10 @@
 % Please edit documentation in R/functions.R
 \name{remove_covs_with_high_correlation}
 \alias{remove_covs_with_high_correlation}
-\title{Removes a certain amount of covariates with the highest correlations to other
-covariates. This function is just used to ensure invertibility in some cases
-as described in the paragraph "Numerical invertibility" of Section 9.1.}
+\title{Removes a certain amount of covariates with the highest sample correlation
+to another covariate. This function is just used to ensure invertibility in
+some cases as described in the paragraph "Numerical invertibility" of
+Section 9.1}
 \usage{
 remove_covs_with_high_correlation(Z, number)
 }
@@ -14,10 +15,11 @@ remove_covs_with_high_correlation(Z, number)
 \item{number}{The number of covariates to be deleted}
 }
 \value{
-Returns the remaining covariates after deletion
+The remaining covariates after deletion
 }
 \description{
-Removes a certain amount of covariates with the highest correlations to other
-covariates. This function is just used to ensure invertibility in some cases
-as described in the paragraph "Numerical invertibility" of Section 9.1.
+Removes a certain amount of covariates with the highest sample correlation
+to another covariate. This function is just used to ensure invertibility in
+some cases as described in the paragraph "Numerical invertibility" of
+Section 9.1
 }

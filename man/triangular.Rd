@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{triangular}
 \alias{triangular}
-\title{Computes the triangular kernel}
+\title{Compute the triangular kernel}
 \usage{
 triangular(x)
 }
@@ -13,5 +13,5 @@ triangular(x)
 The value of the triangular kernel function.
 }
 \description{
-Computes the triangular kernel
+Compute the triangular kernel
 }
