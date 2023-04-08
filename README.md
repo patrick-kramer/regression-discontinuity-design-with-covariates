@@ -17,7 +17,7 @@ Data set on Austrian labor market (Section 9.4): `RDD-with-Dataset.R`
 The requirements such that the above R-files run are:
 
 -   R must be installed
--   All required packages must be installed (`utils`, `haven`, `RDRobust`, `RDHonest`, `mvtnorm`, `parallel`)
+-   All required packages must be installed (`utils`, `haven`, `rdrobust`, `RDHonest`, `mvtnorm`, `parallel`)
 -   The working directory must be set to this folder
 -   This folder must contain another folder `data` which includes the file `Card_analysis_dataset.dta`
 -   This folder must contain another folder `R` which includes the files `functions.R` and `RDD_functions.R`
