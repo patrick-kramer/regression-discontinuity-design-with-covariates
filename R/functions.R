@@ -132,6 +132,9 @@ remove_covs_calculated_threshold <- function(Z, Y, data_size, simple_deletion = 
       # In case of simple deletion, there is no need to order the positions
       pos_ordered <- pos
     } else {
+      # Sort pairs according to the row index such that they are grouped by the
+      # respective row indices
+      pos <- pos[order(pos[,1]),]
       # In case of advanced deletion, sort them according to the correlation
       # to the outcome
       pos_ordered <- pos[order(abs(vapply(pos[,1],
