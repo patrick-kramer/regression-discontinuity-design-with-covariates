@@ -20,7 +20,7 @@
 ###############################################################################
 # Set working directory as well as install and load packages / dependencies   #
 ###############################################################################
-list.of.packages <- c("mvtnorm", "rdrobust", "parallel", "utils")
+list.of.packages <- c("mvtnorm", "rdrobust", "parallel", "utils", "glmnet")
 new.packages <- list.of.packages[!(list.of.packages %in%
                                      installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -44,7 +44,7 @@ source('R/RDD_functions.R')
 
 # Configure number of Monte Carlo replications
 # Setting for Section 9.3: 10000
-number_of_montecarlo_replications <- 100
+number_of_montecarlo_replications <- 1000
 
 # Configure sample size of the generated data
 # Setting for Section 9.3: 1000
@@ -78,12 +78,13 @@ if (Sys.info()['sysname'] == "Windows") {
                              function(run) {
                                require('rdrobust')
                                require('mvtnorm')
+                               require('glmnet')
                              })
   # Export necessary functions to the cluster
   clusterExport(cluster, c('perform_rdd_redundant_covariates', 'triangular', 'calculate_correlation',
                            'remove_covs_calculated_threshold', 'compare_correlation',
                            'calculate_correlation_thresholds', 'calculate_correlation_threshold_matrix',
-                           'remove_covs_with_high_correlation'))
+                           'remove_covs_with_high_correlation', 'select_covs_via_lasso', 'bstpc', 'BCHtpc'))
   # Start the parallel simulation
   results_list_of_matrices <- parLapply(cluster, 1:number_of_montecarlo_replications, perform_rdd_redundant_covariates,
                                         sample_size = n,
@@ -113,13 +114,13 @@ standard_deviation <- c()
 standard_error <- c()
 ci_length <- c()
 coverage <- c()
-results <- matrix(NA, 3, 6, dimnames = list(list("(CCT)", "(CCTAD)", "(CCTSD)"),
+results <- matrix(NA, 4, 6, dimnames = list(list("(CCT)", "(CCTAD)", "(CCTSD)", "(Lasso)"),
                                             list("#Covs", "Bias", "SD", "Avg. SE",
                                                  "CI Length", "Coverage")))
 
 # Store results in a matrix
 # Iterate over the results of each covariate setting
-for (l in 1:3) {
+for (l in 1:4) {
   # Average the number of selected covariates over all executions
   number_of_covs <- append(number_of_covs, mean(results_matrix[l,5,]))
   # Average the estimation of the average treatment effect over all executions
@@ -144,7 +145,7 @@ for (l in 1:3) {
 # selection procedures (CCT), (CCTAD) and (CCTSD)
 selection <- rowSums(selection_matrix, dims = 2)*100/number_of_montecarlo_replications
 # Assign column names to selection matrix
-colnames(selection) <- c("(CCT)", "(CCTAD)", "(CCTSD)")
+colnames(selection) <- c("(CCT)", "(CCTAD)", "(CCTSD)", "(Lasso)")
 
 # Print results on covariate selection for the procedures (CCT), (CCTAD) and (CCTSD)
 selection
