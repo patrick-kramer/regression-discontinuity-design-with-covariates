@@ -44,7 +44,7 @@ source('R/RDD_functions.R')
 
 # Configure number of Monte Carlo replications
 # Setting for Section 9.3: 10000
-number_of_montecarlo_replications <- 1000
+number_of_montecarlo_replications <- 100
 
 # Configure sample size of the generated data
 # Setting for Section 9.3: 1000
@@ -114,13 +114,13 @@ standard_deviation <- c()
 standard_error <- c()
 ci_length <- c()
 coverage <- c()
-results <- matrix(NA, 4, 6, dimnames = list(list("(CCT)", "(CCTAD)", "(CCTSD)", "(Lasso)"),
+results <- matrix(NA, 6, 6, dimnames = list(list("(CCT)", "(CCTAD)", "(CCTSD)", "(Lasso BCH)", "(Lasso OPC)", "(Lasso CV)"),
                                             list("#Covs", "Bias", "SD", "Avg. SE",
                                                  "CI Length", "Coverage")))
 
 # Store results in a matrix
 # Iterate over the results of each covariate setting
-for (l in 1:4) {
+for (l in 1:6) {
   # Average the number of selected covariates over all executions
   number_of_covs <- append(number_of_covs, mean(results_matrix[l,5,]))
   # Average the estimation of the average treatment effect over all executions
@@ -145,7 +145,7 @@ for (l in 1:4) {
 # selection procedures (CCT), (CCTAD) and (CCTSD)
 selection <- rowSums(selection_matrix, dims = 2)*100/number_of_montecarlo_replications
 # Assign column names to selection matrix
-colnames(selection) <- c("(CCT)", "(CCTAD)", "(CCTSD)", "(Lasso)")
+colnames(selection) <- c("(CCT)", "(CCTAD)", "(CCTSD)", "(Lasso BCH)", "(Lasso OPC)", "(Lasso CV)")
 
 # Print results on covariate selection for the procedures (CCT), (CCTAD) and (CCTSD)
 selection

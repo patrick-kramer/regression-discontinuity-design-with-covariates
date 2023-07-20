@@ -226,12 +226,12 @@ perform_rdd <- function(run, sample_size, rdd_library = "honest", estimator_type
 perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "honest", estimator_type = 1) {
   
   # Initialize vectors for storing results
-  coef_vector <- array(NA, c(4))
-  standard_error_vector <- array(NA, c(4))
-  ci_length_vector <- array(NA, c(4))
-  coverage_vector <- array(0, c(4))
-  number_of_covs_vector <- array(NA, c(4))
-  selected_covs_vector <- matrix(0, 200, 4)
+  coef_vector <- array(NA, c(6))
+  standard_error_vector <- array(NA, c(6))
+  ci_length_vector <- array(NA, c(6))
+  coverage_vector <- array(0, c(6))
+  number_of_covs_vector <- array(NA, c(6))
+  selected_covs_vector <- matrix(0, 200, 6)
   
   # Generate finite sample data (score and covariates)
   X <- 2*rbeta(sample_size, 2, 4)-1
@@ -282,9 +282,13 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
   Z_calculated_threshold_and_deletion_simple <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = TRUE)
   # Procedure (CCTAD): Calculated correlation threshold with advanced deletion (Section 8.3.3 of the thesis)
   Z_calculated_threshold_and_deletion <- remove_covs_calculated_threshold(Z_calculated_threshold, Y, sample_size, simple_deletion = FALSE)
-  # Procedure (Lasso): Covariate selection via Lasso approach
-  Z_lasso_selection <- select_covs_via_lasso(kernel_weights, h, Y, X, matrix_Z, sample_size, 200, type="LV")
-    
+  # Procedure (Lasso BCH): Covariate selection via Lasso approach
+  Z_lasso_bch_selection <- select_covs_via_lasso(kernel_weights, h, Y, X, matrix_Z, sample_size, 200, type="BCH")
+  # Procedure (Lasso OPC): Covariate selection via Lasso approach
+  Z_lasso_opc_selection <- select_covs_via_lasso(kernel_weights, h, Y, X, matrix_Z, sample_size, 200, type="OPC")
+  # Procedure (Lasso CV): Covariate selection via Lasso approach
+  Z_lasso_cv_selection <- select_covs_via_lasso(kernel_weights, h, Y, X, matrix_Z, sample_size, 200, type="CV")
+
   
   # Raise variable which counts how often a covariate was selected by the respective procedures
   # Counter for selection via calculated threshold (Section 8.3.1)
@@ -302,16 +306,26 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
     selected_covs_vector[index, 2] <- selected_covs_vector[index, 2] + 1
   }
   # Counter for selection via Lasso
-  indices_after_lasso_selection <- as.numeric(colnames(Z_lasso_selection))
-  for (index in indices_after_lasso_selection) {
+  indices_after_lasso_bch_selection <- as.numeric(colnames(Z_lasso_bch_selection))
+  for (index in indices_after_lasso_bch_selection) {
     selected_covs_vector[index, 4] <- selected_covs_vector[index, 4] + 1
+  }
+  indices_after_lasso_opc_selection <- as.numeric(colnames(Z_lasso_opc_selection))
+  for (index in indices_after_lasso_opc_selection) {
+    selected_covs_vector[index, 5] <- selected_covs_vector[index, 5] + 1
+  }
+  indices_after_lasso_cv_selection <- as.numeric(colnames(Z_lasso_cv_selection))
+  for (index in indices_after_lasso_cv_selection) {
+    selected_covs_vector[index, 6] <- selected_covs_vector[index, 6] + 1
   }
   
   # Store the different settings of covariate selections in a list
   covariate_settings <- list(as.matrix(Z_calculated_threshold),
                              as.matrix(Z_calculated_threshold_and_deletion),
                              as.matrix(Z_calculated_threshold_and_deletion_simple),
-                             as.matrix(Z_lasso_selection))
+                             as.matrix(Z_lasso_bch_selection),
+                             as.matrix(Z_lasso_opc_selection),
+                             as.matrix(Z_lasso_cv_selection))
   
   # Store number of selected covariates by each of the selection procedures
   counter <- 1
@@ -397,7 +411,7 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
                              coef_vector,
                              ci_length_vector,
                              coverage_vector,
-                             number_of_covs_vector), 4, 5)
+                             number_of_covs_vector), 6, 5)
   
   # Return the inference results as well as the statistic on selected covariates
   return(list(res = results_of_run, sel = selected_covs_vector))
