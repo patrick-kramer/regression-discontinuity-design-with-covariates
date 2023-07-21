@@ -44,7 +44,7 @@ source('R/RDD_functions.R')
 
 # Configure number of Monte Carlo replications
 # Setting for Section 9.3: 10000
-number_of_montecarlo_replications <- 1000
+number_of_montecarlo_replications <- 100
 
 # Configure sample size of the generated data
 # Setting for Section 9.3: 1000
@@ -86,14 +86,14 @@ if (Sys.info()['sysname'] == "Windows") {
                            'calculate_correlation_thresholds', 'calculate_correlation_threshold_matrix',
                            'remove_covs_with_high_correlation', 'select_covs_via_lasso', 'bstpc', 'BCHtpc'))
   # Start the parallel simulation
-  results_list_of_matrices <- parLapply(cluster, 1:number_of_montecarlo_replications, perform_rdd_redundant_covariates,
+  results_list_of_matrices <- parLapply(cluster, 1:number_of_montecarlo_replications, perform_rdd_correlated_covariates,
                                         sample_size = n,
                                         rdd_library = rdd_library,
                                         estimator_type = rdrobust_estimator_type)
   stopCluster(cluster)
 } else {
   # Start the parallel simulation on all available kernels except for one
-  results_list_of_matrices <- mclapply(1:number_of_montecarlo_replications, perform_rdd_redundant_covariates,
+  results_list_of_matrices <- mclapply(1:number_of_montecarlo_replications, perform_rdd_correlated_covariates,
                                        sample_size = n,
                                        rdd_library = rdd_library,
                                        estimator_type = rdrobust_estimator_type,

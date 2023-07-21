@@ -327,6 +327,30 @@ remove_covs_with_high_correlation <- function(Z, number) {
   }
 }
 
+#' Selects covariates based on lasso
+#'
+#' @param kernel_weights The kernel weights
+#' @param h The used bandwidth
+#' @param Y The outcome variable
+#' @param X The score variable
+#' @param Z The covariate vector
+#' @param sample_size The number of observations
+#' @param p The number of covariates
+#' @param type The method for tuning the parameter of the Lasso
+#'   Possible values are: "CV" for cross-validation. "LV" for the
+#'   bootstrap-procedure based on Lederer and Vogt (2020), this requires the
+#'   user specified parameters alpha, M and L. "BCH" for the procedure adapted
+#'   from Belloni et al. (2013) and "OPC" (observations per covariate) where the
+#'   number of selected covariates is no larger than n_effective/OPC, where
+#'   n_effective is the number of observations which receive a positive kernel
+#'   weight and OPC is specified by the user.
+#' @param M,L,alpha Parameters used for the "LV" method
+#' @param OPC A parameter used for the "OPC" method
+#'
+#' @return Covariate vector which just contains the chosen ones
+#' @export
+#'
+#' @examples
 select_covs_via_lasso <- function(kernel_weights, h, Y, X, Z, sample_size, p, type="CV", M=NULL, L=100, OPC=50, alpha=0.05) {
   relevant_indices <- which(kernel_weights>0)
   T <- 0+(X >= 0)
