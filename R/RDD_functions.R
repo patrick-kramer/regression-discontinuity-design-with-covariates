@@ -561,8 +561,8 @@ perform_rdd_correlated_covariates <- function(run, sample_size, rdd_library = "h
   covariate_settings <- list(as.matrix(Z_calculated_threshold_and_deletion),
                              as.matrix(Z_calculated_threshold_and_deletion_simple),
                              as.matrix(Z_lasso_bch_selection),
-                             as.matrix(Z_lasso_opc_selection),
-                             as.matrix(Z_lasso_cv_selection))
+                             as.matrix(Z_lasso_opc_selection))
+                             #as.matrix(Z_lasso_cv_selection))
   
   if (rdd_library == "robust") {
     ### This section performs RDD with the package RDRobust ###

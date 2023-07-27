@@ -43,24 +43,20 @@ source('R/RDD_functions.R')
 ###############################################################################
 
 # Configure number of Monte Carlo replications
-# Setting for Section 9.3: 10000
-number_of_montecarlo_replications <- 100
+number_of_montecarlo_replications <- 1000
 
 # Configure sample size of the generated data
-# Setting for Section 9.3: 1000
 n <-1000
 
 # Configure which library to use for RD analysis
 #   honest - for RDHonest
 #   robust - for RDRobust
-# Setting for Section 9.3: "honest"
 rdd_library <- "honest"
 
 # Configure the type of estimator. This is only relevant if RDRobust is used.
 #   1 - Conventional
 #   2 - Bias-Corrected
 #   3 - Robust
-# Setting for Section 9.3: RDRobust was not used
 rdrobust_estimator_type <- 1
 
 
