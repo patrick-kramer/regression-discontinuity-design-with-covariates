@@ -419,7 +419,7 @@ perform_rdd_redundant_covariates <- function(run, sample_size, rdd_library = "ho
 
 #' Execute a RD analysis on generated data including covariates chosen from a
 #' set of correlated covariates by different selection procedures (used to
-#' generate results of Section 9.3)
+#' generate results of the paper)
 #'
 #' @param run The number of execution when executed multiple times in parallel
 #' @param sample_size The sample size
@@ -522,7 +522,7 @@ perform_rdd_correlated_covariates <- function(run, sample_size, rdd_library = "h
   for (index in indices_after_deletion) {
     selected_covs_vector[index, 2] <- selected_covs_vector[index, 2] + 1
   }
-  # Counter for selection via Lasso
+  # Counters for selection via Lasso
   indices_after_lasso_bch_selection <- as.numeric(colnames(Z_lasso_bch_selection))
   for (index in indices_after_lasso_bch_selection) {
     selected_covs_vector[index, 4] <- selected_covs_vector[index, 4] + 1

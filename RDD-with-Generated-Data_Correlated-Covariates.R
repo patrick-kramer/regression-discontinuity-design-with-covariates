@@ -1,5 +1,5 @@
 ###############################################################################
-# This file generates the result of Section 9.3.                              #
+# This file generates the result of the paper                                 #
 # The necessary settings are commented below.                                 #
 ###############################################################################
 # In order that this file works, the following has to be satisfied:           #
